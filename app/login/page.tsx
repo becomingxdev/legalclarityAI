@@ -4,34 +4,44 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/firebase/auth-context";
-import { Scale, Sparkles, Mail, Lock, ArrowRight, ShieldCheck } from "lucide-react";
+import { Scale, Mail, Lock, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { loginWithEmail, loginWithGoogle, loginAsGuest } = useAuth();
+  const { loginWithEmail, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email || !password) return;
     setLoading(true);
-    await loginWithEmail(email, password);
-    setLoading(false);
-    router.push("/dashboard");
+    setError(null);
+    try {
+      await loginWithEmail(email, password);
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "Failed to sign in. Please verify your credentials.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogle = async () => {
     setLoading(true);
-    await loginWithGoogle();
-    setLoading(false);
-    router.push("/dashboard");
-  };
-
-  const handleGuest = () => {
-    loginAsGuest();
-    router.push("/dashboard");
+    setError(null);
+    try {
+      await loginWithGoogle();
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "Google sign in failed.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -49,32 +59,18 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* 1-Click Demo Button */}
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 dark:border-indigo-950 dark:bg-indigo-950/40">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
-                Hackathon / Quick Evaluation
-              </span>
-              <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                Explore full platform with pre-loaded contracts instantly
-              </p>
-            </div>
-            <button
-              onClick={handleGuest}
-              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              1-Click Demo
-            </button>
+        {error && (
+          <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{error}</span>
           </div>
-        </div>
+        )}
 
         {/* Google Login */}
         <button
           onClick={handleGoogle}
           disabled={loading}
-          className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 disabled:opacity-50"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
             <path
@@ -142,10 +138,16 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-indigo-500"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-indigo-500 disabled:opacity-50"
           >
-            Sign In with Email
-            <ArrowRight className="h-4 w-4" />
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                Sign In with Email
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
           </button>
         </form>
 

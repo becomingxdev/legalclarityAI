@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { answerLegalQuestion } from "@/lib/ai/gemini";
+import { answerLegalQuestion } from "@/lib/ai/groq";
 import { retrieveRelevantChunks } from "@/lib/retrieval/rag";
 import { DocumentChunk } from "@/types/legal";
 
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Retrieve the top grounded chunks for this specific question
-    const relevantChunks = retrieveRelevantChunks(question, chunks, 4);
+    const relevantChunks = retrieveRelevantChunks(question, chunks, 5);
 
     const result = await answerLegalQuestion(question, relevantChunks, previousMessages);
 
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     console.error("API /api/chat error:", error);
     return NextResponse.json(
-      { error: "Failed to answer question", details: String(error) },
+      { error: "Failed to answer question with AI", details: String(error) },
       { status: 500 }
     );
   }

@@ -40,15 +40,17 @@ export default function DocumentWorkspacePage() {
   useEffect(() => {
     setMounted(true);
     if (id) {
-      const doc = getDocumentById(id);
-      if (doc) {
-        setDocument(doc);
-      } else {
-        const allDocs = loadUserDocuments();
-        if (allDocs.length > 0) {
-          setDocument(allDocs[0]);
+      getDocumentById(id).then((doc) => {
+        if (doc) {
+          setDocument(doc);
+        } else {
+          loadUserDocuments().then((allDocs) => {
+            if (allDocs.length > 0) {
+              setDocument(allDocs[0]);
+            }
+          });
         }
-      }
+      });
     }
   }, [id]);
 

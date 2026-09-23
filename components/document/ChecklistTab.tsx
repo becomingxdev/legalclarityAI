@@ -13,7 +13,7 @@ interface ChecklistTabProps {
 export const ChecklistTab: React.FC<ChecklistTabProps> = ({ document }) => {
   const [items, setItems] = useState<ChecklistItem[]>(document.analysis?.checklist || []);
 
-  const handleToggle = (id: string) => {
+  const handleToggle = async (id: string) => {
     const updated = items.map((item) => {
       if (item.id === id) {
         const nextState = !item.completed;
@@ -39,7 +39,7 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({ document }) => {
     // Persist to document
     if (document.analysis) {
       document.analysis.checklist = updated;
-      saveDocument(document);
+      await saveDocument(document);
     }
   };
 

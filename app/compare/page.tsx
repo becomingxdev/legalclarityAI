@@ -2,9 +2,9 @@
 
 import React, { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { LegalDocument, ContractComparisonResult } from "@/types/legal";
 import { loadUserDocuments } from "@/lib/storage/documentStore";
-import { generateContractComparison } from "@/lib/ai/heuristics";
 import {
   GitCompare,
   PlusCircle,
@@ -12,6 +12,8 @@ import {
   FileEdit,
   ShieldAlert,
   Loader2,
+  FileText,
+  Upload,
 } from "lucide-react";
 
 function CompareContent() {
@@ -22,40 +24,83 @@ function CompareContent() {
   const [docAId, setDocAId] = React.useState<string>(initialDocAId);
   const [docBId, setDocBId] = React.useState<string>("");
   const [comparison, setComparison] = React.useState<ContractComparisonResult | null>(null);
+  const [isComparing, setIsComparing] = React.useState<boolean>(false);
+  const [error, setError] = React.useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] = React.useState<string>("All");
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
-    const docs = loadUserDocuments();
-    setDocuments(docs);
+    loadUserDocuments().then((docs) => {
+      setDocuments(docs);
 
-    if (docs.length >= 2) {
-      const firstId = initialDocAId || docs[0].id;
-      const secondId = docs.find((d) => d.id !== firstId)?.id || docs[1].id;
-      setDocAId(firstId);
-      setDocBId(secondId);
-
-      const docA = docs.find((d) => d.id === firstId);
-      const docB = docs.find((d) => d.id === secondId);
-      if (docA && docB) {
-        setComparison(generateContractComparison(docA, docB));
+      if (docs.length >= 2) {
+        const firstId = initialDocAId || docs[0].id;
+        const secondId = docs.find((d) => d.id !== firstId)?.id || docs[1].id;
+        setDocAId(firstId);
+        setDocBId(secondId);
+      } else if (docs.length === 1) {
+        setDocAId(docs[0].id);
       }
-    } else if (docs.length === 1) {
-      setDocAId(docs[0].id);
-    }
+    });
   }, [initialDocAId]);
 
-  const handleRunComparison = () => {
+  const handleRunComparison = async () => {
     const docA = documents.find((d) => d.id === docAId);
     const docB = documents.find((d) => d.id === docBId);
     if (!docA || !docB) return;
 
-    const result = generateContractComparison(docA, docB);
-    setComparison(result);
+    setIsComparing(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ docA, docB }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json();
+        throw new Error(errJson.error || "Failed to compare contracts");
+      }
+
+      const data = await res.json();
+      setComparison(data.comparison);
+    } catch (err: unknown) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "Comparison failed");
+    } finally {
+      setIsComparing(false);
+    }
   };
 
   if (!mounted) return null;
+
+  if (documents.length < 2) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-slate-800 dark:text-indigo-400">
+          <GitCompare className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-xl font-bold text-slate-900 dark:text-white">
+          Contract Comparison Engine
+        </h2>
+        <p className="mt-2 text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
+          To compare contracts and view redline differences, you need at least two documents uploaded in your workspace.
+        </p>
+        <div className="mt-6 flex justify-center gap-3">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Upload Contracts in Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const filteredItems = comparison?.items.filter((item) => {
     if (selectedFilter === "All") return true;
@@ -69,7 +114,7 @@ function CompareContent() {
       <div>
         <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
           <GitCompare className="h-3.5 w-3.5" />
-          <span>Redline & Version Difference Engine</span>
+          <span>AI Redline & Version Difference Engine</span>
         </div>
         <h1 className="mt-3 text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
           Contract Comparison & Risk Divergence
@@ -119,14 +164,29 @@ function CompareContent() {
           </div>
         </div>
 
+        {error && (
+          <div className="mt-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+            {error}
+          </div>
+        )}
+
         <div className="mt-6 flex justify-end">
           <button
             onClick={handleRunComparison}
-            disabled={!docAId || !docBId || docAId === docBId}
+            disabled={!docAId || !docBId || docAId === docBId || isComparing}
             className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50"
           >
-            <GitCompare className="h-4 w-4" />
-            Compare Contracts
+            {isComparing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Analyzing Differences with AI...
+              </>
+            ) : (
+              <>
+                <GitCompare className="h-4 w-4" />
+                Compare Contracts with AI
+              </>
+            )}
           </button>
         </div>
       </div>

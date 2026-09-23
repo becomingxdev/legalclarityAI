@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/firebase/auth-context";
-import { Scale, Mail, Lock, User, ArrowRight } from "lucide-react";
+import { Scale, Mail, Lock, User, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -13,21 +13,36 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !name) return;
+    if (!email || !name || !password) return;
     setLoading(true);
-    await signupWithEmail(email, password, name);
-    setLoading(false);
-    router.push("/dashboard");
+    setError(null);
+    try {
+      await signupWithEmail(email, password, name);
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "Failed to create account.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogle = async () => {
     setLoading(true);
-    await loginWithGoogle();
-    setLoading(false);
-    router.push("/dashboard");
+    setError(null);
+    try {
+      await loginWithGoogle();
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "Google registration failed.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -41,14 +56,21 @@ export default function SignupPage() {
             Create an Account
           </h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Start clarifying legal contracts and policies today
+            Start clarifying legal contracts and policies with AI
           </p>
         </div>
+
+        {error && (
+          <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
         <button
           onClick={handleGoogle}
           disabled={loading}
-          className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 disabled:opacity-50"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
             <path
@@ -133,10 +155,16 @@ export default function SignupPage() {
           <button
             type="submit"
             disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-indigo-500"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-indigo-500 disabled:opacity-50"
           >
-            Create Account
-            <ArrowRight className="h-4 w-4" />
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                Create Account
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
           </button>
         </form>
 

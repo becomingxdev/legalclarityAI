@@ -16,13 +16,30 @@ export async function POST(req: NextRequest) {
 
       if (isPdf) {
         try {
-          // Dynamic require or import of pdf-parse
-          const pdfParse = require("pdf-parse");
-          const pdfData = await pdfParse(buffer);
-          rawText = pdfData.text || "";
+          const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js");
+          const uint8Array = new Uint8Array(buffer);
+          
+          const loadingTask = pdfjsLib.getDocument({
+            data: uint8Array,
+            disableFontFace: true,
+            standardFontDataUrl: "node_modules/pdfjs-dist/standard_fonts/",
+          });
+          
+          const pdfDocument = await loadingTask.promise;
+          const numPages = pdfDocument.numPages;
+          let extractedText = "";
+
+          for (let i = 1; i <= numPages; i++) {
+            const page = await pdfDocument.getPage(i);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items.map((item: any) => item.str).join(" ");
+            extractedText += pageText + "\n\n";
+          }
+          
+          rawText = extractedText;
         } catch (pdfErr) {
-          console.warn("pdf-parse failed, attempting fallback text extraction:", pdfErr);
-          rawText = buffer.toString("utf-8").replace(/[^\x20-\x7E\n\r]/g, " ");
+          console.warn("pdfjs-dist failed, fallback to raw text:", pdfErr);
+          rawText = buffer.toString("latin1").replace(/[^\x20-\x7E\n\r\t]/g, " ").replace(/ {3,}/g, "  ");
         }
       } else {
         // Plain text / Markdown

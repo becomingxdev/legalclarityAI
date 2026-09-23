@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateContractComparison } from "@/lib/ai/heuristics";
+import { compareContractsWithAI } from "@/lib/ai/groq";
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,12 +16,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const comparison = generateContractComparison(docA, docB);
+    const comparison = await compareContractsWithAI(docA, docB);
     return NextResponse.json({ success: true, comparison });
   } catch (error: unknown) {
     console.error("API /api/compare error:", error);
     return NextResponse.json(
-      { error: "Failed to compare documents", details: String(error) },
+      { error: "Failed to compare documents with AI", details: String(error) },
       { status: 500 }
     );
   }

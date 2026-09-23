@@ -1,113 +1,93 @@
 import { LegalDocument } from "@/types/legal";
-import { chunkLegalDocument } from "@/lib/pdf/chunker";
-import { generateHeuristicAnalysis } from "@/lib/ai/heuristics";
-import { SAMPLE_SAAS_CONTRACT, SAMPLE_REVISED_SAAS_CONTRACT } from "@/lib/sample-data/sampleContracts";
 
-const STORAGE_KEY = "legalclarity_documents_v1";
+const DB_NAME = "LegalClarityDB";
+const STORE_NAME = "documents";
+const DB_VERSION = 1;
 
-/**
- * Initialize default sample contracts if none exist in browser storage
- */
-export function getInitialDocuments(): LegalDocument[] {
-  const saasChunks = chunkLegalDocument(SAMPLE_SAAS_CONTRACT.rawText!, SAMPLE_SAAS_CONTRACT.id!);
-  const saasAnalysis = generateHeuristicAnalysis(SAMPLE_SAAS_CONTRACT.title!, SAMPLE_SAAS_CONTRACT.rawText!);
-
-  const saasDoc: LegalDocument = {
-    id: SAMPLE_SAAS_CONTRACT.id!,
-    userId: "usr-demo-12345",
-    title: SAMPLE_SAAS_CONTRACT.title!,
-    fileName: SAMPLE_SAAS_CONTRACT.fileName!,
-    fileSize: SAMPLE_SAAS_CONTRACT.fileSize!,
-    uploadDate: SAMPLE_SAAS_CONTRACT.uploadDate!,
-    pageCount: SAMPLE_SAAS_CONTRACT.pageCount!,
-    rawText: SAMPLE_SAAS_CONTRACT.rawText!,
-    chunks: saasChunks,
-    analysis: saasAnalysis,
-    status: "ready",
-    chatHistory: [
-      {
-        id: "msg-welcome",
-        sender: "ai",
-        text: `Hello! I have reviewed **${SAMPLE_SAAS_CONTRACT.title}**. You can ask me any question regarding your obligations, payment terms, auto-renewal deadlines, or liability caps. I will always cite the exact page and clause.`,
-        timestamp: new Date().toISOString(),
-        suggestedFollowUps: [
-          "Can I terminate this agreement early?",
-          "What penalties exist for late payments?",
-          "Is there an auto-renewal clause?",
-          "What is provider's liability cap?",
-        ],
-      },
-    ],
-  };
-
-  const redlineChunks = chunkLegalDocument(SAMPLE_REVISED_SAAS_CONTRACT.rawText!, SAMPLE_REVISED_SAAS_CONTRACT.id!);
-  const redlineAnalysis = generateHeuristicAnalysis(SAMPLE_REVISED_SAAS_CONTRACT.title!, SAMPLE_REVISED_SAAS_CONTRACT.rawText!);
-
-  const redlineDoc: LegalDocument = {
-    id: SAMPLE_REVISED_SAAS_CONTRACT.id!,
-    userId: "usr-demo-12345",
-    title: SAMPLE_REVISED_SAAS_CONTRACT.title!,
-    fileName: SAMPLE_REVISED_SAAS_CONTRACT.fileName!,
-    fileSize: SAMPLE_REVISED_SAAS_CONTRACT.fileSize!,
-    uploadDate: SAMPLE_REVISED_SAAS_CONTRACT.uploadDate!,
-    pageCount: SAMPLE_REVISED_SAAS_CONTRACT.pageCount!,
-    rawText: SAMPLE_REVISED_SAAS_CONTRACT.rawText!,
-    chunks: redlineChunks,
-    analysis: redlineAnalysis,
-    status: "ready",
-    chatHistory: [
-      {
-        id: "msg-welcome-2",
-        sender: "ai",
-        text: `Analysis ready for **${SAMPLE_REVISED_SAAS_CONTRACT.title}**. You can compare this redline against the original agreement in the Compare tab.`,
-        timestamp: new Date().toISOString(),
-      },
-    ],
-  };
-
-  return [saasDoc, redlineDoc];
+function getDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") {
+      reject(new Error("No window"));
+      return;
+    }
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    request.onupgradeneeded = (e) => {
+      const db = (e.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: "id" });
+      }
+    };
+  });
 }
 
-export function loadUserDocuments(): LegalDocument[] {
+export async function loadUserDocuments(): Promise<LegalDocument[]> {
   if (typeof window === "undefined") return [];
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) {
-    const defaults = getInitialDocuments();
-    saveUserDocuments(defaults);
-    return defaults;
-  }
   try {
-    return JSON.parse(stored);
-  } catch {
-    const defaults = getInitialDocuments();
-    saveUserDocuments(defaults);
-    return defaults;
+    const db = await getDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const docs = (req.result || []) as LegalDocument[];
+        docs.sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
+        resolve(docs);
+      };
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    console.error("IDB load error", e);
+    return [];
   }
 }
 
-export function saveUserDocuments(docs: LegalDocument[]): void {
+export async function getDocumentById(id: string): Promise<LegalDocument | undefined> {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const db = await getDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.get(id);
+      req.onsuccess = () => resolve(req.result as LegalDocument | undefined);
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    console.error("IDB get error", e);
+    return undefined;
+  }
+}
+
+export async function saveDocument(doc: LegalDocument): Promise<void> {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(docs));
-}
-
-export function getDocumentById(id: string): LegalDocument | undefined {
-  const docs = loadUserDocuments();
-  return docs.find((d) => d.id === id);
-}
-
-export function saveDocument(doc: LegalDocument): void {
-  const docs = loadUserDocuments();
-  const index = docs.findIndex((d) => d.id === doc.id);
-  if (index >= 0) {
-    docs[index] = doc;
-  } else {
-    docs.unshift(doc);
+  try {
+    const db = await getDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.put(doc);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    console.error("IDB save error", e);
   }
-  saveUserDocuments(docs);
 }
 
-export function deleteDocumentById(id: string): void {
-  const docs = loadUserDocuments();
-  const filtered = docs.filter((d) => d.id !== id);
-  saveUserDocuments(filtered);
+export async function deleteDocumentById(id: string): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const db = await getDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.delete(id);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    console.error("IDB delete error", e);
+  }
 }

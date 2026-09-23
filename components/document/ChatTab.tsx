@@ -83,7 +83,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ document, onNavigateToChunk })
 
       // Persist to document
       document.chatHistory = finalHistory;
-      saveDocument(document);
+      await saveDocument(document);
     } catch (err) {
       console.error(err);
       const fallbackMsg: ChatMessage = {

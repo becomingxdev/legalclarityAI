@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { analyzeLegalDocumentWithAI } from "@/lib/ai/gemini";
+import { analyzeLegalDocumentWithAI } from "@/lib/ai/groq";
 import { DocumentChunk } from "@/types/legal";
 
 export async function POST(req: NextRequest) {
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     console.error("API /api/analyze error:", error);
     return NextResponse.json(
-      { error: "Failed to analyze document", details: String(error) },
+      { error: "Failed to analyze document with AI", details: String(error) },
       { status: 500 }
     );
   }

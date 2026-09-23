@@ -4,8 +4,8 @@ import React, { useState, useRef } from "react";
 import { UploadCloud, FileText, X, AlertCircle, Loader2, Sparkles } from "lucide-react";
 import { LegalDocument } from "@/types/legal";
 import { chunkLegalDocument } from "@/lib/pdf/chunker";
-import { generateHeuristicAnalysis } from "@/lib/ai/heuristics";
 import { saveDocument } from "@/lib/storage/documentStore";
+import { useAuth } from "@/lib/firebase/auth-context";
 
 interface DocumentUploadModalProps {
   isOpen: boolean;
@@ -18,11 +18,13 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
   onClose,
   onDocumentAdded,
 }) => {
+  const { user } = useAuth();
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [textInput, setTextInput] = useState("");
   const [title, setTitle] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadStep, setUploadStep] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -65,6 +67,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
 
     setIsUploading(true);
     setError(null);
+    setUploadStep("Extracting and parsing document...");
 
     try {
       let rawText = textInput;
@@ -75,7 +78,6 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
         fileName = file.name;
         fileSize = file.size;
 
-        // Try server upload route first
         const formData = new FormData();
         formData.append("file", file);
         formData.append("title", title || file.name);
@@ -90,7 +92,6 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
             const data = await res.json();
             rawText = data.rawText;
           } else {
-            // Read client side if server route had parse issue
             rawText = await file.text();
           }
         } catch {
@@ -106,29 +107,24 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
       const docId = "doc-" + Date.now();
       const chunks = chunkLegalDocument(rawText, docId);
 
-      // Perform legal analysis
-      let analysis = generateHeuristicAnalysis(docTitle, rawText);
+      setUploadStep("Running live AI analysis with Groq (LLaMA 3.3)...");
 
-      // Attempt AI enhancement if online
-      try {
-        const analyzeRes = await fetch("/api/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: docTitle, rawText, chunks }),
-        });
-        if (analyzeRes.ok) {
-          const resJson = await analyzeRes.json();
-          if (resJson.analysis) {
-            analysis = resJson.analysis;
-          }
-        }
-      } catch (aiErr) {
-        console.warn("AI analysis fallback:", aiErr);
+      const analyzeRes = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: docTitle, rawText, chunks }),
+      });
+
+      if (!analyzeRes.ok) {
+        const errJson = await analyzeRes.json();
+        throw new Error(errJson.error || "AI Analysis failed");
       }
+
+      const { analysis } = await analyzeRes.json();
 
       const newDoc: LegalDocument = {
         id: docId,
-        userId: "usr-demo-12345",
+        userId: user?.uid || "anonymous",
         title: docTitle,
         fileName,
         fileSize,
@@ -142,18 +138,19 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
           {
             id: "msg-init",
             sender: "ai",
-            text: `Analysis complete for **${docTitle}**. You can explore the 8 tabs above or ask any grounded question below.`,
+            text: `Analysis complete for **${docTitle}**. You can explore the simplified sections, flagged risks, actionable checklist, and lawyer prep briefing, or ask any grounded question below.`,
             timestamp: new Date().toISOString(),
             suggestedFollowUps: [
-              "What are my main obligations?",
-              "What are the termination terms?",
-              "Are there any financial penalties?",
+              "What are my key obligations?",
+              "What are the termination conditions and notice periods?",
+              "Are there any payment penalties or auto-renewals?",
+              "What is the liability cap?",
             ],
           },
         ],
       };
 
-      saveDocument(newDoc);
+      await saveDocument(newDoc);
       onDocumentAdded(newDoc);
       onClose();
     } catch (err: unknown) {
@@ -161,6 +158,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
       setError(err instanceof Error ? err.message : "Failed to process document");
     } finally {
       setIsUploading(false);
+      setUploadStep("");
     }
   };
 
@@ -169,6 +167,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
       <div className="relative w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:p-8">
         <button
           onClick={onClose}
+          disabled={isUploading}
           className="absolute right-4 top-4 rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
         >
           <X className="h-5 w-5" />
@@ -183,7 +182,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
               Upload Legal Document
             </h3>
             <p className="text-xs text-slate-500">
-              Upload PDF, contract text, or agreement to generate instant plain-English analysis
+              Upload your PDF, agreement, contract, or policy for real AI analysis
             </p>
           </div>
         </div>
@@ -204,7 +203,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Master Services Agreement 2025"
+              placeholder="e.g. Non-Disclosure Agreement or SaaS Contract"
               className="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             />
           </div>
@@ -225,7 +224,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.txt,.md,.doc,.docx"
+              accept=".pdf,.txt,.md"
               onChange={handleFileChange}
               className="hidden"
             />
@@ -245,54 +244,60 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
                 <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Drag and drop your PDF or document here, or <span className="text-indigo-600 font-semibold underline">browse</span>
                 </p>
-                <p className="mt-1 text-xs text-slate-400">Supports PDF, Markdown, and TXT files</p>
+                <p className="mt-1 text-xs text-slate-400">PDF, Markdown, or Plain Text</p>
               </div>
             )}
           </div>
 
-          {/* Alternative: Paste Direct Text */}
+          {/* Text Input Option */}
           <div>
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Or Paste Agreement Text
               </label>
-              <span className="text-[11px] text-slate-400">Optional text fallback</span>
+              <span className="text-[11px] text-slate-400">Direct text entry</span>
             </div>
             <textarea
               rows={4}
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
-              placeholder="Paste contract provisions, clauses, or agreement text here..."
+              placeholder="Paste clauses or contract provisions directly here..."
               className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-xs focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             />
           </div>
         </div>
 
-        <div className="mt-6 flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
-          <button
-            onClick={onClose}
-            disabled={isUploading}
-            className="rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleProcess}
-            disabled={isUploading || (!file && !textInput.trim())}
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-white shadow-md hover:bg-indigo-500 disabled:opacity-50"
-          >
-            {isUploading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Analyzing Document...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                Analyze Document
-              </>
-            )}
-          </button>
+        <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800">
+          <div className="text-xs text-indigo-600 font-medium">
+            {uploadStep}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              disabled={isUploading}
+              className="rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleProcess}
+              disabled={isUploading || (!file && !textInput.trim())}
+              className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-white shadow-md hover:bg-indigo-500 disabled:opacity-50"
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Analyzing with AI...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Analyze Document
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
