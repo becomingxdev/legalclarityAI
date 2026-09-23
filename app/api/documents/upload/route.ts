@@ -16,29 +16,30 @@ export async function POST(req: NextRequest) {
 
       if (isPdf) {
         try {
-          const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js");
+          // Use standard (non-legacy) build — text extraction does NOT need canvas
+          const pdfjsLib = require("pdfjs-dist/build/pdf.js");
+          // Stub out the NodeCanvasFactory so pdfjs doesn't try to require('canvas')
           const uint8Array = new Uint8Array(buffer);
-          
           const loadingTask = pdfjsLib.getDocument({
             data: uint8Array,
             disableFontFace: true,
-            standardFontDataUrl: "node_modules/pdfjs-dist/standard_fonts/",
+            verbosity: 0,
           });
-          
           const pdfDocument = await loadingTask.promise;
           const numPages = pdfDocument.numPages;
-          let extractedText = "";
-
+          const pageTexts: string[] = [];
           for (let i = 1; i <= numPages; i++) {
             const page = await pdfDocument.getPage(i);
             const textContent = await page.getTextContent();
-            const pageText = textContent.items.map((item: any) => item.str).join(" ");
-            extractedText += pageText + "\n\n";
+            pageTexts.push(
+              textContent.items
+                .map((item: { str: string }) => item.str)
+                .join(" ")
+            );
           }
-          
-          rawText = extractedText;
+          rawText = pageTexts.join("\n\n");
         } catch (pdfErr) {
-          console.warn("pdfjs-dist failed, fallback to raw text:", pdfErr);
+          console.warn("pdfjs-dist failed, using ASCII fallback:", pdfErr);
           rawText = buffer.toString("latin1").replace(/[^\x20-\x7E\n\r\t]/g, " ").replace(/ {3,}/g, "  ");
         }
       } else {

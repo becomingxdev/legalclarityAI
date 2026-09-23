@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_FIREBASE_APP_ID: process.env.firbase_app_id || process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
     NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: process.env.firebase_measurement_id || process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "",
   },
+  // Keep these heavy native/canvas-dependent packages as runtime Node requires
+  // instead of bundling them — prevents "can't resolve canvas" build errors
+  serverExternalPackages: ["pdfjs-dist", "canvas", "pdf-parse"],
 };
 
 export default nextConfig;
