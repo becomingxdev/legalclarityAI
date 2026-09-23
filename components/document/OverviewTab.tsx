@@ -64,7 +64,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ document, onNavigateTo
             </h3>
           </div>
           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-            {document.pageCount} Pages • {document.chunks.length} Chunks
+            {document.pageCount || 1} Pages • {document.chunks?.length || 0} Chunks
           </span>
         </div>
 

@@ -26,31 +26,38 @@ export const LawyerPrepTab: React.FC<LawyerPrepTabProps> = ({ document }) => {
     window.print();
   };
 
+  const parties = Array.isArray(prep?.partiesInvolved) ? prep.partiesInvolved : [];
+  const effectiveDates = prep?.effectiveDates || { startDate: "", endDate: "", noticeDeadline: "" };
+  const risks = Array.isArray(prep?.keyFacts?.risks) ? prep.keyFacts.risks : [];
+  const obligations = Array.isArray(prep?.keyFacts?.obligations) ? prep.keyFacts.obligations : [];
+  const suggestedQuestions = Array.isArray(prep?.suggestedQuestions) ? prep.suggestedQuestions : [];
+  const negotiationPoints = Array.isArray(prep?.negotiationPoints) ? prep.negotiationPoints : [];
+
   const generateMarkdownReport = () => {
     if (!prep) return "";
     return `# LAWYER BRIEFING PACKAGE: ${document.title}
 Prepared via LegalClarity AI (${new Date().toLocaleDateString()})
 
 ## 1. Case & Executive Summary
-${prep.caseSummary}
+${prep.caseSummary || "No case summary provided."}
 
 ## 2. Key Parties & Effective Dates
-- Parties: ${prep.partiesInvolved.join(" and ")}
-- Start Date: ${prep.effectiveDates.startDate || "N/A"}
-- Term / End: ${prep.effectiveDates.endDate || "N/A"}
-- Critical Notice Deadline: ${prep.effectiveDates.noticeDeadline || "N/A"}
+- Parties: ${parties.length > 0 ? parties.join(" and ") : "Unspecified"}
+- Start Date: ${effectiveDates.startDate || "N/A"}
+- Term / End: ${effectiveDates.endDate || "N/A"}
+- Critical Notice Deadline: ${effectiveDates.noticeDeadline || "N/A"}
 
 ## 3. High-Priority Risk Highlights
-${prep.keyFacts.risks.map((r, i) => `${i + 1}. ${r}`).join("\n")}
+${risks.length > 0 ? risks.map((r, i) => `${i + 1}. ${r}`).join("\n") : "None flagged."}
 
 ## 4. Key Client Obligations
-${prep.keyFacts.obligations.map((o, i) => `${i + 1}. ${o}`).join("\n")}
+${obligations.length > 0 ? obligations.map((o, i) => `${i + 1}. ${o}`).join("\n") : "None flagged."}
 
 ## 5. Suggested Clarifying Questions for Legal Counsel
-${prep.suggestedQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n")}
+${suggestedQuestions.length > 0 ? suggestedQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n") : "None specified."}
 
 ## 6. Proposed Negotiation / Redline Focus Areas
-${prep.negotiationPoints.map((p, i) => `${i + 1}. ${p}`).join("\n")}
+${negotiationPoints.length > 0 ? negotiationPoints.map((p, i) => `${i + 1}. ${p}`).join("\n") : "None specified."}
 
 ---
 DISCLAIMER: LegalClarity AI provides legal information and preparation assistance; it does not replace professional legal advice.`;
@@ -123,10 +130,10 @@ DISCLAIMER: LegalClarity AI provides legal information and preparation assistanc
             Legal Counsel Briefing Packet
           </span>
           <h2 className="mt-2 text-xl font-bold text-slate-900 dark:text-white">
-            {prep.documentTitle}
+            {prep.documentTitle || document.title}
           </h2>
           <p className="text-xs text-slate-400">
-            Generated on {new Date().toLocaleDateString()} • Ingested {document.chunks.length} clauses
+            Generated on {new Date().toLocaleDateString()} • Ingested {document.chunks?.length || 0} clauses
           </p>
         </div>
 
@@ -136,7 +143,7 @@ DISCLAIMER: LegalClarity AI provides legal information and preparation assistanc
             1. Executive & Case Summary
           </h4>
           <p className="mt-2 text-xs text-slate-700 dark:text-slate-300 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100 dark:bg-slate-800/40 dark:border-slate-800">
-            {prep.caseSummary}
+            {prep.caseSummary || "No summary available."}
           </p>
         </div>
 
@@ -149,16 +156,16 @@ DISCLAIMER: LegalClarity AI provides legal information and preparation assistanc
             </h4>
             <ul className="mt-3 space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
               <li>
-                <strong>Parties:</strong> {prep.partiesInvolved.join(" & ")}
+                <strong>Parties:</strong> {parties.length > 0 ? parties.join(" & ") : "N/A"}
               </li>
               <li>
-                <strong>Start Date:</strong> {prep.effectiveDates.startDate || "N/A"}
+                <strong>Start Date:</strong> {effectiveDates.startDate || "N/A"}
               </li>
               <li>
-                <strong>Duration:</strong> {prep.effectiveDates.endDate || "N/A"}
+                <strong>Duration:</strong> {effectiveDates.endDate || "N/A"}
               </li>
               <li>
-                <strong>Notice Deadline:</strong> {prep.effectiveDates.noticeDeadline || "N/A"}
+                <strong>Notice Deadline:</strong> {effectiveDates.noticeDeadline || "N/A"}
               </li>
             </ul>
           </div>
@@ -169,12 +176,16 @@ DISCLAIMER: LegalClarity AI provides legal information and preparation assistanc
               Primary Risks for Counsel
             </h4>
             <ul className="mt-3 space-y-1 text-xs text-slate-600 dark:text-slate-300">
-              {prep.keyFacts.risks.map((risk, i) => (
-                <li key={i} className="flex items-start gap-1.5">
-                  <span className="text-rose-500 font-bold">•</span>
-                  <span>{risk}</span>
-                </li>
-              ))}
+              {risks.length > 0 ? (
+                risks.map((risk, i) => (
+                  <li key={i} className="flex items-start gap-1.5">
+                    <span className="text-rose-500 font-bold">•</span>
+                    <span>{risk}</span>
+                  </li>
+                ))
+              ) : (
+                <li className="text-slate-400 italic">No specific risks highlighted.</li>
+              )}
             </ul>
           </div>
         </div>
@@ -185,17 +196,21 @@ DISCLAIMER: LegalClarity AI provides legal information and preparation assistanc
             2. High-Value Questions to Ask Your Lawyer
           </h4>
           <div className="mt-2 space-y-2">
-            {prep.suggestedQuestions.map((q, idx) => (
-              <div
-                key={idx}
-                className="flex items-start gap-3 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 text-xs text-slate-800 dark:border-indigo-950 dark:bg-indigo-950/20 dark:text-slate-200"
-              >
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">
-                  Q{idx + 1}
+            {suggestedQuestions.length > 0 ? (
+              suggestedQuestions.map((q, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-start gap-3 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 text-xs text-slate-800 dark:border-indigo-950 dark:bg-indigo-950/20 dark:text-slate-200"
+                >
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">
+                    Q{idx + 1}
+                  </div>
+                  <p className="font-medium pt-0.5">{q}</p>
                 </div>
-                <p className="font-medium pt-0.5">{q}</p>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-xs text-slate-400 italic">No suggested questions generated.</p>
+            )}
           </div>
         </div>
 
@@ -205,15 +220,19 @@ DISCLAIMER: LegalClarity AI provides legal information and preparation assistanc
             3. Recommended Redline & Negotiation Targets
           </h4>
           <ul className="mt-2 space-y-2 text-xs text-slate-700 dark:text-slate-300">
-            {prep.negotiationPoints.map((point, idx) => (
-              <li
-                key={idx}
-                className="flex items-center gap-2 rounded-xl bg-slate-50 p-2.5 dark:bg-slate-800/40"
-              >
-                <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span>{point}</span>
-              </li>
-            ))}
+            {negotiationPoints.length > 0 ? (
+              negotiationPoints.map((point, idx) => (
+                <li
+                  key={idx}
+                  className="flex items-center gap-2 rounded-xl bg-slate-50 p-2.5 dark:bg-slate-800/40"
+                >
+                  <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>{point}</span>
+                </li>
+              ))
+            ) : (
+              <li className="text-xs text-slate-400 italic">No negotiation points listed.</li>
+            )}
           </ul>
         </div>
       </div>

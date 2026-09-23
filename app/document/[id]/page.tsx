@@ -28,23 +28,30 @@ import { ChatTab } from "@/components/document/ChatTab";
 import { NextStepsTab } from "@/components/document/NextStepsTab";
 import { LawyerPrepTab } from "@/components/document/LawyerPrepTab";
 
+import { useAuth } from "@/lib/firebase/auth-context";
+
 export default function DocumentWorkspacePage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
+  const { user, loading } = useAuth();
 
   const [document, setDocument] = useState<LegalDocument | null>(null);
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+      return;
+    }
     setMounted(true);
     if (id) {
-      getDocumentById(id).then((doc) => {
+      getDocumentById(id, user?.uid).then((doc) => {
         if (doc) {
           setDocument(doc);
         } else {
-          loadUserDocuments().then((allDocs) => {
+          loadUserDocuments(user?.uid).then((allDocs) => {
             if (allDocs.length > 0) {
               setDocument(allDocs[0]);
             }
@@ -52,7 +59,7 @@ export default function DocumentWorkspacePage() {
         }
       });
     }
-  }, [id]);
+  }, [id, user, loading, router]);
 
   if (!mounted) return null;
 

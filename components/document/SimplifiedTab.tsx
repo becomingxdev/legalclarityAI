@@ -9,7 +9,7 @@ interface SimplifiedTabProps {
 }
 
 export const SimplifiedTab: React.FC<SimplifiedTabProps> = ({ document }) => {
-  const sections = document.analysis?.simplifiedSections || [];
+  const sections = Array.isArray(document.analysis?.simplifiedSections) ? document.analysis.simplifiedSections : [];
   const [activeView, setActiveView] = useState<"side-by-side" | "plain-only">("side-by-side");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -115,7 +115,7 @@ export const SimplifiedTab: React.FC<SimplifiedTabProps> = ({ document }) => {
                       {sec.simplifiedText}
                     </p>
 
-                    {sec.keyTakeaways && sec.keyTakeaways.length > 0 && (
+                    {Array.isArray(sec.keyTakeaways) && sec.keyTakeaways.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-emerald-100 dark:border-emerald-900/40 space-y-1">
                         <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 block">
                           Key Takeaways:

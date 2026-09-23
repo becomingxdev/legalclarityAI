@@ -18,7 +18,7 @@ interface RisksTabProps {
 }
 
 export const RisksTab: React.FC<RisksTabProps> = ({ document }) => {
-  const risks = document.analysis?.risks || [];
+  const risks = Array.isArray(document.analysis?.risks) ? document.analysis.risks : [];
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [selectedSeverity, setSelectedSeverity] = useState<string>("All");
   const [expandedId, setExpandedId] = useState<string | null>(null);

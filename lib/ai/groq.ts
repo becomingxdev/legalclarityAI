@@ -36,6 +36,7 @@ export async function analyzeLegalDocumentWithAI(
   const client = safeClient();
 
   const prompt = `Analyse this legal document and return ONLY valid JSON matching the schema below.
+Keep output concise and punchy (maximum 2-3 items per list) so the entire JSON is compact.
 Do NOT hallucinate. Ground findings in the provided text only.
 
 TITLE: ${title}
@@ -46,10 +47,10 @@ ${cap(rawText, 3500)}
 
 Return JSON:
 {"executiveSummary":{"documentPurpose":"","partiesInvolved":[],"importantDates":[],"financialObligations":[],"overallRiskLevel":"Medium","governingLaw":""},
-"simplifiedSections":[{"id":"","section":"","heading":"","pageNumber":1,"originalText":"","simplifiedText":"","keyTakeaways":[]}],
-"risks":[{"id":"","riskType":"Obligations","title":"","explanation":"","whyItMatters":"","sourceClause":"","pageNumber":1,"sectionNumber":"","severity":"Medium","recommendation":""}],
-"checklist":[{"id":"","task":"","category":"Compliance","dueWindow":"","completed":false,"sourceRef":"","pageNumber":1}],
-"nextSteps":[{"id":"","title":"","description":"","actionType":"Review","urgency":"Before Signing"}],
+"simplifiedSections":[{"id":"s1","section":"1","heading":"","pageNumber":1,"originalText":"","simplifiedText":"","keyTakeaways":[]}],
+"risks":[{"id":"r1","riskType":"Obligations","title":"","explanation":"","whyItMatters":"","sourceClause":"","pageNumber":1,"sectionNumber":"","severity":"Medium","recommendation":""}],
+"checklist":[{"id":"c1","task":"","category":"Compliance","dueWindow":"","completed":false,"sourceRef":"","pageNumber":1}],
+"nextSteps":[{"id":"n1","title":"","description":"","actionType":"Review","urgency":"Before Signing"}],
 "lawyerPrep":{"documentTitle":"","caseSummary":"","partiesInvolved":[],"effectiveDates":{"startDate":"","endDate":"","noticeDeadline":""},"keyFacts":{"dates":[],"parties":[],"obligations":[],"risks":[]},"suggestedQuestions":[],"negotiationPoints":[]}}`;
 
   const completion = await client.chat.completions.create({
@@ -60,7 +61,7 @@ Return JSON:
     ],
     response_format: { type: "json_object" },
     temperature: 0.15,
-    max_tokens: 2048,
+    max_tokens: 950,
   });
 
   const content = completion.choices[0]?.message?.content || "{}";
@@ -138,6 +139,7 @@ export async function compareContractsWithAI(
   const client = safeClient();
 
   const prompt = `Compare these two legal contracts. Return ONLY valid JSON.
+Identify up to 3-4 most critical differences between the contracts concisely.
 
 CONTRACT A – ${docA.title}:
 """
@@ -152,7 +154,7 @@ ${cap(docB.rawText, 2500)}
 JSON schema:
 {"docAId":"${docA.id}","docBId":"${docB.id}","docATitle":"${docA.title}","docBTitle":"${docB.title}",
 "executiveComparison":"","criticalChangeCount":0,"addedCount":0,"removedCount":0,"modifiedCount":0,
-"items":[{"id":"","type":"modified","category":"General","isCritical":false,"clauseTitle":"","originalText":"","revisedText":"","aiExplanation":"","impactAssessment":""}]}`;
+"items":[{"id":"diff-1","type":"modified","category":"General","isCritical":false,"clauseTitle":"","originalText":"","revisedText":"","aiExplanation":"","impactAssessment":""}]}`;
 
   const completion = await client.chat.completions.create({
     model: MODEL,
@@ -162,7 +164,7 @@ JSON schema:
     ],
     response_format: { type: "json_object" },
     temperature: 0.1,
-    max_tokens: 1536,
+    max_tokens: 900,
   });
 
   const content = completion.choices[0]?.message?.content || "{}";

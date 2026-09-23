@@ -19,7 +19,7 @@ interface NextStepsTabProps {
 }
 
 export const NextStepsTab: React.FC<NextStepsTabProps> = ({ document, onNavigateToTab }) => {
-  const steps = document.analysis?.nextSteps || [];
+  const steps = Array.isArray(document.analysis?.nextSteps) ? document.analysis.nextSteps : [];
 
   const getUrgencyBadge = (urgency: string) => {
     switch (urgency) {

@@ -150,7 +150,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
         ],
       };
 
-      await saveDocument(newDoc);
+      await saveDocument(newDoc, user?.uid);
       onDocumentAdded(newDoc);
       onClose();
     } catch (err: unknown) {

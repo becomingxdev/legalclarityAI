@@ -16,9 +16,12 @@ import {
   Upload,
 } from "lucide-react";
 
+import { useAuth } from "@/lib/firebase/auth-context";
+
 function CompareContent() {
   const searchParams = useSearchParams();
   const initialDocAId = searchParams.get("docA") || "";
+  const { user } = useAuth();
 
   const [documents, setDocuments] = React.useState<LegalDocument[]>([]);
   const [docAId, setDocAId] = React.useState<string>(initialDocAId);
@@ -31,7 +34,7 @@ function CompareContent() {
 
   React.useEffect(() => {
     setMounted(true);
-    loadUserDocuments().then((docs) => {
+    loadUserDocuments(user?.uid).then((docs) => {
       setDocuments(docs);
 
       if (docs.length >= 2) {
@@ -43,7 +46,7 @@ function CompareContent() {
         setDocAId(docs[0].id);
       }
     });
-  }, [initialDocAId]);
+  }, [initialDocAId, user]);
 
   const handleRunComparison = async () => {
     const docA = documents.find((d) => d.id === docAId);

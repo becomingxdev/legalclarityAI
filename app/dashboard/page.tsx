@@ -35,15 +35,19 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setMounted(true);
-    loadUserDocuments().then(setDocuments);
-  }, []);
+    if (user) {
+      loadUserDocuments(user.uid).then(setDocuments);
+    } else if (!loading) {
+      loadUserDocuments().then(setDocuments);
+    }
+  }, [user, loading]);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (confirm("Are you sure you want to remove this document analysis?")) {
-      await deleteDocumentById(id);
-      const docs = await loadUserDocuments();
+      await deleteDocumentById(id, user?.uid);
+      const docs = await loadUserDocuments(user?.uid);
       setDocuments(docs);
     }
   };
@@ -228,7 +232,7 @@ export default function DashboardPage() {
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
         onDocumentAdded={async (newDoc) => {
-          const docs = await loadUserDocuments();
+          const docs = await loadUserDocuments(user?.uid);
           setDocuments(docs);
         }}
       />
