@@ -19,7 +19,11 @@ interface UserRecord {
 }
 
 // In-memory store: userId|ip → record
-const store = new Map<string, UserRecord>();
+const globalStore = (globalThis as any).__quotaStore || new Map<string, UserRecord>();
+if (process.env.NODE_ENV !== "production") {
+  (globalThis as any).__quotaStore = globalStore;
+}
+const store: Map<string, UserRecord> = globalStore;
 
 const DAILY_MS = 24 * 60 * 60 * 1_000;
 const QUOTA_AUTH   = 80_000; // authenticated user daily cap
@@ -106,14 +110,36 @@ export function quotaSnapshot(userId: string): {
 
 /**
  * Derive a stable user-key from the request.
- * Priority: Firebase UID header > X-Forwarded-For > remote IP > "anon"
+ *
+ * Priority order:
+ *   1. Firebase JWT in Authorization header (decoded client-side, unverified sig — best available without Admin SDK)
+ *   2. X-Forwarded-For IP (set by CDN/load-balancer, not directly writable by the browser)
+ *   3. Fallback "ip:unknown"
+ *
+ * x-user-id is intentionally NOT trusted — it is a plain header any browser
+ * can set to an arbitrary value, making it trivially spoofable for quota bypass.
  */
 export function resolveUserId(req: {
   headers: { get(name: string): string | null };
 }): string {
-  const uid = req.headers.get("x-user-id");
-  if (uid && uid.trim().length > 0) return uid.trim();
+  // 1. Try to extract UID from Firebase JWT (Authorization: Bearer <token>)
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.slice(7);
+    try {
+      const payloadBase64 = token.split(".")[1];
+      if (payloadBase64) {
+        const decoded = JSON.parse(Buffer.from(payloadBase64, "base64").toString()) as Record<string, unknown>;
+        if (typeof decoded.user_id === "string" && decoded.user_id) {
+          return decoded.user_id;
+        }
+      }
+    } catch {
+      // Malformed token — fall through to IP
+    }
+  }
 
+  // 2. IP from CDN/load-balancer (cannot be forged by the browser itself)
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) return `ip:${forwarded.split(",")[0].trim()}`;
 

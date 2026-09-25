@@ -2,37 +2,55 @@ import { NextRequest, NextResponse } from "next/server";
 import { compareContractsWithAI } from "@/lib/ai/groq";
 import { calcComparisonBudget } from "@/lib/ai/token-budget";
 import { resolveUserId, consumeQuota, quotaSnapshot } from "@/lib/ai/user-quota";
+import { CHARS_PER_PAGE } from "@/lib/constants";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { docA, docB } = body as {
-      docA: { id: string; title: string; rawText: string; pageCount?: number };
-      docB: { id: string; title: string; rawText: string; pageCount?: number };
-    };
+    const body = await req.json() as Record<string, unknown>;
 
-    if (!docA?.rawText || !docB?.rawText) {
+    // ── Runtime validation ────────────────────────────────────────────────────
+    const { docA, docB } = body;
+
+    if (
+      !docA || typeof docA !== "object" ||
+      typeof (docA as Record<string, unknown>).rawText !== "string" ||
+      !(docA as Record<string, unknown>).rawText
+    ) {
       return NextResponse.json(
-        { error: "Both documents with text are required for comparison" },
+        { error: "docA must be an object with a non-empty rawText string" },
+        { status: 400 }
+      );
+    }
+    if (
+      !docB || typeof docB !== "object" ||
+      typeof (docB as Record<string, unknown>).rawText !== "string" ||
+      !(docB as Record<string, unknown>).rawText
+    ) {
+      return NextResponse.json(
+        { error: "docB must be an object with a non-empty rawText string" },
         { status: 400 }
       );
     }
 
+    const safeDocA = docA as { id: string; title: string; rawText: string; pageCount?: number };
+    const safeDocB = docB as { id: string; title: string; rawText: string; pageCount?: number };
+    // ─────────────────────────────────────────────────────────────────────────
+
     // ── Dynamic budget based on both documents' sizes ──
     const budget = calcComparisonBudget(
-      docA.pageCount ?? Math.ceil(docA.rawText.length / 2_000),
-      docA.rawText.length,
-      docB.pageCount ?? Math.ceil(docB.rawText.length / 2_000),
-      docB.rawText.length
+      safeDocA.pageCount ?? Math.ceil(safeDocA.rawText.length / CHARS_PER_PAGE),
+      safeDocA.rawText.length,
+      safeDocB.pageCount ?? Math.ceil(safeDocB.rawText.length / CHARS_PER_PAGE),
+      safeDocB.rawText.length
     );
 
     // ── Per-user quota check ──
-    const userId  = resolveUserId(req);
+    const userId = resolveUserId(req);
     const allowed = consumeQuota(userId, budget.estimatedInputTokens + budget.maxTokensOut);
 
     if (!allowed) {
       const { generateContractComparison } = await import("@/lib/ai/heuristics");
-      const comparison = generateContractComparison(docA, docB);
+      const comparison = generateContractComparison(safeDocA, safeDocB);
       return NextResponse.json({
         success: true,
         comparison,
@@ -40,7 +58,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const comparison = await compareContractsWithAI(docA, docB, budget);
+    const comparison = await compareContractsWithAI(safeDocA, safeDocB, budget);
     return NextResponse.json({
       success: true,
       comparison,

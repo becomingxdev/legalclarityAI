@@ -3,26 +3,40 @@ import { analyzeLegalDocumentWithAI } from "@/lib/ai/groq";
 import { DocumentChunk } from "@/types/legal";
 import { calcAnalysisBudget } from "@/lib/ai/token-budget";
 import { resolveUserId, consumeQuota, quotaSnapshot } from "@/lib/ai/user-quota";
+import { CHARS_PER_PAGE } from "@/lib/constants";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { title, rawText, chunks, pageCount } = body as {
-      title: string;
-      rawText: string;
-      chunks: DocumentChunk[];
-      pageCount?: number;
-    };
+    const body = await req.json() as Record<string, unknown>;
 
-    if (!rawText || !title) {
+    // ── Runtime validation (type casts alone give no runtime safety) ──────────
+    const { title, rawText, chunks, pageCount } = body;
+
+    if (typeof title !== "string" || !title.trim()) {
       return NextResponse.json(
-        { error: "Document title and text are required" },
+        { error: "Document title is required and must be a string" },
         { status: 400 }
       );
     }
+    if (typeof rawText !== "string" || !rawText.trim()) {
+      return NextResponse.json(
+        { error: "Document text is required and must be a string" },
+        { status: 400 }
+      );
+    }
+    if (!Array.isArray(chunks)) {
+      return NextResponse.json(
+        { error: "chunks must be an array" },
+        { status: 400 }
+      );
+    }
+    const safePageCount =
+      typeof pageCount === "number" && pageCount > 0 ? pageCount : undefined;
+    const safeChunks = chunks as DocumentChunk[];
+    // ─────────────────────────────────────────────────────────────────────────
 
     // ── Dynamic budget based on actual document size ──
-    const pages  = pageCount ?? Math.ceil(rawText.length / 2_000); // ~2 000 chars/page estimate
+    const pages  = safePageCount ?? Math.ceil(rawText.length / CHARS_PER_PAGE);
     const budget = calcAnalysisBudget(pages, rawText.length);
 
     // ── Per-user quota check ──
@@ -40,7 +54,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const analysis = await analyzeLegalDocumentWithAI(title, rawText, chunks || [], budget);
+    const analysis = await analyzeLegalDocumentWithAI(title, rawText, safeChunks, budget);
     return NextResponse.json({
       success: true,
       analysis,

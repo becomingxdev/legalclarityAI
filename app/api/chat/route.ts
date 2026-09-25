@@ -7,40 +7,49 @@ import { resolveUserId, consumeQuota, quotaSnapshot } from "@/lib/ai/user-quota"
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { question, chunks, previousMessages, pageCount } = body as {
-      question: string;
-      chunks: DocumentChunk[];
-      previousMessages?: { role: string; content: string }[];
-      pageCount?: number;
-    };
+    const body = await req.json() as Record<string, unknown>;
 
-    if (!question || !chunks || chunks.length === 0) {
+    // ── Runtime validation ────────────────────────────────────────────────────
+    const { question, chunks, previousMessages, pageCount } = body;
+
+    if (typeof question !== "string" || !question.trim()) {
       return NextResponse.json(
-        { error: "Question and document chunks are required" },
+        { error: "question must be a non-empty string" },
         { status: 400 }
       );
     }
+    if (!Array.isArray(chunks) || chunks.length === 0) {
+      return NextResponse.json(
+        { error: "chunks must be a non-empty array" },
+        { status: 400 }
+      );
+    }
+    const safePrevious = Array.isArray(previousMessages)
+      ? (previousMessages as { role: string; content: string }[])
+      : [];
+    const safePageCount =
+      typeof pageCount === "number" && pageCount > 0 ? pageCount : 0;
+    const safeChunks = chunks as DocumentChunk[];
+    // ─────────────────────────────────────────────────────────────────────────
 
     // ── Dynamic budget based on document size ──
-    const pages  = pageCount ?? 0;
-    const budget = calcQABudget(pages, chunks.length);
+    const budget = calcQABudget(safePageCount, safeChunks.length);
 
     // ── Per-user quota check ──
-    const userId  = resolveUserId(req);
+    const userId = resolveUserId(req);
     const allowed = consumeQuota(userId, budget.estimatedInputTokens + budget.maxTokensOut);
 
     // Retrieve top-N chunks according to budget
-    const relevantChunks = retrieveRelevantChunks(question, chunks, budget.ragChunkCount);
+    const relevantChunks = retrieveRelevantChunks(question, safeChunks, budget.ragChunkCount);
 
     const result = await answerLegalQuestion(
       question,
       relevantChunks,
-      previousMessages,
+      safePrevious,
       allowed ? budget : undefined  // undefined → function uses chunk fallback path
     );
 
-    // If quota was denied, override answer with a polite notice appended
+    // If quota was denied, append a polite notice
     const answer = !allowed
       ? result.answer + "\n\n_⚠️ Daily AI quota reached — answers are based on document excerpts only._"
       : result.answer;

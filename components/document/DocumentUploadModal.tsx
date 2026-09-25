@@ -116,11 +116,14 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
       const pageCount = Math.max(1, chunks[chunks.length - 1]?.pageNumber || 1);
       setUploadStep(`Running AI analysis (${pageCount} pages detected)…`);
 
+      const { auth } = await import("@/lib/firebase/config");
+      const token = await auth.currentUser?.getIdToken();
+
       const analyzeRes = await fetch("/api/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(user?.uid ? { "x-user-id": user.uid } : {}),
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ title: docTitle, rawText, chunks, pageCount }),
       });

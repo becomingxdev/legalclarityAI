@@ -1,8 +1,9 @@
-"use client";
+// Server Component — no "use client" needed
+// The only client-interactive part (auth-conditional CTA) is in <HeroCTA />.
 
 import React from "react";
 import Link from "next/link";
-import { useAuth } from "@/lib/firebase/auth-context";
+import { HeroCTA } from "@/components/layout/HeroCTA";
 import {
   Scale,
   FileText,
@@ -72,8 +73,6 @@ const principles = [
 ];
 
 export default function LandingPage() {
-  const { user } = useAuth();
-
   return (
     <div className="flex flex-col bg-[#0d0f13] text-white min-h-screen">
       {/* ── Hero ── */}
@@ -105,33 +104,9 @@ export default function LandingPage() {
           Upload any contract, agreement, or lease. Get plain-language explanations, identify potential concerns, question the document with cited evidence, and prepare for legal review.
         </p>
 
-        {/* CTA Buttons */}
+        {/* CTA Buttons — auth-conditional, isolated client component */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-          {user ? (
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-2 rounded-xl bg-indigo-600 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/30 transition hover:bg-indigo-500"
-            >
-              Open Your Workspace
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          ) : (
-            <>
-              <Link
-                href="/signup"
-                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/30 transition hover:bg-indigo-500"
-              >
-                Get Started Free
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white/80 backdrop-blur-sm transition hover:bg-white/10"
-              >
-                Try Demo Workspace
-              </Link>
-            </>
-          )}
+          <HeroCTA />
         </div>
 
         {/* Trust Badges */}
@@ -151,7 +126,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Interactive Example Analysis Preview (Section 6.1 #5) ── */}
+      {/* ── Interactive Example Analysis Preview ── */}
       <section className="px-6 py-12 border-t border-white/[0.06] bg-white/[0.01]">
         <div className="mx-auto max-w-5xl">
           <div className="text-center mb-8">
@@ -205,7 +180,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── 8 Core Features (Section 4) ── */}
+      {/* ── 8 Core Features ── */}
       <section className="px-6 py-20">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-12">
@@ -238,7 +213,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Product Principles (Section 3) ── */}
+      {/* ── Product Principles ── */}
       <section className="border-t border-white/[0.06] bg-white/[0.015] px-6 py-20">
         <div className="mx-auto max-w-5xl">
           <div className="text-center mb-12">
@@ -265,7 +240,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── How It Works (Section 5) ── */}
+      {/* ── How It Works ── */}
       <section className="border-t border-white/[0.06] px-6 py-20">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400">
@@ -294,7 +269,7 @@ export default function LandingPage() {
             ].map((s, idx) => (
               <div
                 key={idx}
-                className="flex items-start gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4.5"
+                className="flex items-start gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4"
               >
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
                   {idx + 1}
@@ -318,7 +293,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Responsible Legal AI Disclaimer (Section 1.3 & Section 40) ── */}
+      {/* ── Responsible Legal AI Disclaimer ── */}
       <section className="border-t border-white/[0.06] bg-amber-500/[0.03] px-6 py-8">
         <div className="mx-auto max-w-4xl text-center text-xs text-amber-200/80 leading-relaxed space-y-2">
           <p className="font-semibold text-amber-300 flex items-center justify-center gap-2">

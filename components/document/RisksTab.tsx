@@ -67,11 +67,12 @@ export const RisksTab: React.FC<RisksTabProps> = ({ document, onNavigateToSource
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Category Badges */}
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Risk Categories">
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
+                aria-pressed={selectedCategory === cat}
                 className={`rounded-xl px-3 py-1 text-xs font-semibold transition ${
                   selectedCategory === cat
                     ? "bg-indigo-600 text-white shadow-sm"
@@ -84,12 +85,13 @@ export const RisksTab: React.FC<RisksTabProps> = ({ document, onNavigateToSource
           </div>
 
           {/* Severity Filter */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5" role="group" aria-label="Risk Severities">
             <span className="text-xs font-medium text-slate-500">Severity:</span>
             {["All", "High", "Medium", "Low"].map((sev) => (
               <button
                 key={sev}
                 onClick={() => setSelectedSeverity(sev)}
+                aria-pressed={selectedSeverity === sev}
                 className={`rounded-lg px-2 py-0.5 text-xs font-medium transition ${
                   selectedSeverity === sev
                     ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"

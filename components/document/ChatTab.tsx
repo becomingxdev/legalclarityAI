@@ -9,7 +9,7 @@ import {
   FileText,
   Loader2,
 } from "lucide-react";
-import { saveDocument } from "@/lib/storage/documentStore";
+import { saveChatHistory } from "@/lib/storage/documentStore";
 
 interface ChatTabProps {
   document: LegalDocument;
@@ -22,13 +22,13 @@ export const ChatTab: React.FC<ChatTabProps> = ({ document, onNavigateToChunk })
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading]);
+  }, [messages, isLoading, scrollToBottom]);
 
   const handleSend = useCallback(async (questionText?: string) => {
     const q = (questionText || input).trim();
@@ -48,14 +48,14 @@ export const ChatTab: React.FC<ChatTabProps> = ({ document, onNavigateToChunk })
     setIsLoading(true);
 
     try {
+      const { auth } = await import("@/lib/firebase/config");
+      const token = await auth.currentUser?.getIdToken();
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // Let the server resolve the per-user quota bucket
-          ...(document.userId && document.userId !== "anonymous"
-            ? { "x-user-id": document.userId }
-            : {}),
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           question: q,
@@ -87,12 +87,8 @@ export const ChatTab: React.FC<ChatTabProps> = ({ document, onNavigateToChunk })
       const finalHistory = [...newHistory, aiMsg];
       setMessages(finalHistory);
 
-      // Persist to document without mutating prop
-      const updatedDoc: LegalDocument = {
-        ...document,
-        chatHistory: finalHistory,
-      };
-      await saveDocument(updatedDoc);
+      // Persist only chat history — do NOT re-write rawText/chunks/analysis on every turn
+      await saveChatHistory(document.id, document.userId, finalHistory);
     } catch (err) {
       console.error(err);
       const errSuffix = Math.random().toString(36).substring(2, 9);

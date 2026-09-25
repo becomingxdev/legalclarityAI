@@ -62,11 +62,14 @@ function CompareContent() {
     setError(null);
 
     try {
+      const { auth } = await import("@/lib/firebase/config");
+      const token = await auth.currentUser?.getIdToken();
+
       const res = await fetch("/api/compare", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(user?.uid ? { "x-user-id": user.uid } : {}),
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           docA: { ...docA, pageCount: docA.pageCount ?? 0 },

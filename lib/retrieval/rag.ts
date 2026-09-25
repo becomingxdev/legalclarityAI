@@ -13,7 +13,15 @@ export function retrieveRelevantChunks(
   if (!query) return chunks.slice(0, topK);
 
   const cleanQuery = query.toLowerCase();
-  const queryTerms = cleanQuery.split(/\s+/).filter((t) => t.length > 2);
+  const STOPWORDS = new Set([
+    "the", "and", "for", "with", "from", "that", "this", "what", "which",
+    "when", "where", "how", "many", "much", "does", "will", "shall",
+    "into", "about", "than", "then", "there", "their", "they", "been", "have", "were", "are"
+  ]);
+  const queryTerms = cleanQuery
+    .replace(/[^\w\s]/g, " ")
+    .split(/\s+/)
+    .filter((t) => t.length > 2 && !STOPWORDS.has(t));
 
   // Legal domain query expansion
   const termExpansions: Record<string, string[]> = {
@@ -61,13 +69,8 @@ export function retrieveRelevantChunks(
 
   scored.sort((a, b) => b.score - a.score);
 
-  // If matches found, return topK; if no strong matches, return the most prominent/first chunks
   const topResults = scored.filter((s) => s.score > 0).slice(0, topK);
-  if (topResults.length > 0) {
-    return topResults.map((s) => s.chunk);
-  }
-
-  return chunks.slice(0, topK);
+  return topResults.map((s) => s.chunk);
 }
 
 /**

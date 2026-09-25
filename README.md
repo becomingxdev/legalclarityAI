@@ -88,7 +88,7 @@ This means **the app is fully functional with zero API calls**.
 3. **Risks** — Categorised risk cards (Obligations, Payment Terms, Termination, Liability, Confidentiality…) with severity levels and "View in Document →" cross-navigation
 4. **Checklist** — Interactive to-do list derived from contractual obligations; progress bar; `.txt` export
 5. **Sources** — All text chunks with page numbers; searchable; copyable citations; highlight-on-navigate
-6. **Chat** — RAG-powered Q&A: top-3 chunks retrieved by TF-IDF, sent to Groq, every answer cites page/section
+6. **Chat** — RAG-powered Q&A: top-3 chunks retrieved by keyword and synonym-based relevance, sent to Groq, every answer cites page/section
 7. **Next Steps** — Decision-tree guidance on what to verify or negotiate before signing
 8. **Lawyer Prep** — Generated briefing pack (case summary, key facts, suggested questions) ready to hand to a solicitor; Markdown copy + print
 
@@ -156,7 +156,7 @@ Judges can click **"Load Demo Contracts"** on the dashboard or **"Load Sample Pa
 
 ## Efficiency
 
-- **Chunked RAG** — only the top-3 semantically relevant chunks (TF-IDF scored) are sent per Q&A call, not the full document
+- **Chunked RAG** — only the top-3 semantically relevant chunks (keyword and synonym-based relevance scored) are sent per Q&A call, not the full document
 - **Hard token caps** — `max_tokens` is set per task (420 / 900 / 1 200) to prevent runaway costs
 - **Text truncation** — raw document text is capped at 3 000 chars for analysis, 2 000 per contract for comparison
 - **Model tier routing** — cheapest model tried first; expensive models only reached on failure
@@ -223,7 +223,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | Auth | Firebase Authentication |
 | Cloud DB | Firebase Firestore |
 | Local DB | IndexedDB (via custom `documentStore`) |
-| RAG | TF-IDF chunk retrieval (`lib/retrieval/rag.ts`) |
+| RAG | keyword and synonym-based relevance chunk retrieval (`lib/retrieval/rag.ts`) |
 
 ---
 

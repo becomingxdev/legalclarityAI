@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   FileText,
@@ -18,13 +18,13 @@ import { loadUserDocuments, deleteDocumentById } from "@/lib/storage/documentSto
 import { DocumentUploadModal } from "@/components/document/DocumentUploadModal";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/firebase/auth-context";
+import { useClientMount } from "@/lib/hooks/useClientMount";
 
 export default function DashboardPage() {
   const [documents, setDocuments] = useState<LegalDocument[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const mountedRef = React.useRef(false);
-  const [isMounted, setIsMounted] = React.useState(false);
+  const isMounted = useClientMount();
   const router = useRouter();
   const { user, loading } = useAuth();
 
@@ -43,13 +43,16 @@ export default function DashboardPage() {
         const docs = await loadUserDocuments();
         setDocuments(docs);
       }
-      if (!mountedRef.current) {
-        mountedRef.current = true;
-        setIsMounted(true);
-      }
     };
     loadDocs();
   }, [user, loading]);
+
+  // ── Extracted seed handler (was duplicated inline on two separate buttons) ──
+  const handleSeedDemos = useCallback(async () => {
+    const { seedSampleDocuments } = await import("@/lib/storage/documentStore");
+    const seeded = await seedSampleDocuments(user?.uid);
+    setDocuments(seeded);
+  }, [user?.uid]);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -61,9 +64,10 @@ export default function DashboardPage() {
     }
   };
 
-  const filteredDocs = documents.filter((doc) =>
-    doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    doc.fileName.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredDocs = documents.filter(
+    (doc) =>
+      doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      doc.fileName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (!isMounted) return null;
@@ -83,11 +87,7 @@ export default function DashboardPage() {
 
         <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={async () => {
-              const { seedSampleDocuments } = await import("@/lib/storage/documentStore");
-              const seeded = await seedSampleDocuments(user?.uid);
-              setDocuments(seeded);
-            }}
+            onClick={handleSeedDemos}
             className="flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/70 px-3.5 py-2.5 text-xs font-semibold text-indigo-700 shadow-xs transition hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
           >
             <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
@@ -177,11 +177,7 @@ export default function DashboardPage() {
             </p>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
               <button
-                onClick={async () => {
-                  const { seedSampleDocuments } = await import("@/lib/storage/documentStore");
-                  const seeded = await seedSampleDocuments(user?.uid);
-                  setDocuments(seeded);
-                }}
+                onClick={handleSeedDemos}
                 className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-semibold text-indigo-700 shadow-xs hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300"
               >
                 <Sparkles className="h-3.5 w-3.5" />
@@ -203,7 +199,6 @@ export default function DashboardPage() {
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredDocs.map((doc) => {
-              const riskCount = doc.analysis?.risks?.length || 0;
               const highRisks = doc.analysis?.risks?.filter((r) => r.severity === "High").length || 0;
 
               return (
@@ -264,7 +259,7 @@ export default function DashboardPage() {
       <DocumentUploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
-        onDocumentAdded={async (newDoc) => {
+        onDocumentAdded={async () => {
           const docs = await loadUserDocuments(user?.uid);
           setDocuments(docs);
         }}

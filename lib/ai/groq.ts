@@ -12,6 +12,9 @@ import {
   LegalDocumentAnalysis,
   SourceReference,
   ContractComparisonResult,
+  RiskCard,
+  ChecklistItem,
+  SimplifiedSection,
 } from "@/types/legal";
 import { generateHeuristicAnalysis, generateContractComparison } from "./heuristics";
 import {
@@ -20,6 +23,11 @@ import {
   calcQABudget,
   calcComparisonBudget,
 } from "./token-budget";
+import {
+  CHAT_QUOTE_PREVIEW_CHARS,
+  CHAT_QUESTION_MAX_CHARS,
+  CHAT_HISTORY_WINDOW,
+} from "@/lib/constants";
 
 // ─── Client ───────────────────────────────────────────────────────────────────
 const apiKey      = process.env.AI_API_KEY || "";
@@ -119,60 +127,120 @@ async function tryModels(
   throw lastErr;
 }
 
-// ─── 1. Full document analysis ────────────────────────────────────────────────
-/**
- * @param budget  Pass a pre-computed TokenBudget from calcAnalysisBudget().
- *                If omitted, the budget is derived from rawText.length (back-compat).
- */
+// ─── 1. Full document analysis (Batched) ──────────────────────────────────────
 export async function analyzeLegalDocumentWithAI(
   title: string,
   rawText: string,
-  _chunks: DocumentChunk[],
+  chunks: DocumentChunk[],
   budget?: TokenBudget
 ): Promise<LegalDocumentAnalysis> {
   const client = safeClient();
-  if (!client) {
-    console.info("[groq] No API key — heuristics engine");
-    return generateHeuristicAnalysis(title, rawText);
+  if (!client || chunks.length === 0) {
+    console.info("[groq] No API key or empty chunks — heuristics engine");
+    return generateHeuristicAnalysis(title, rawText, chunks);
   }
 
-  // Derive budget if not supplied (backwards-compatible)
   const b = budget ?? calcAnalysisBudget(0, rawText.length);
-
   console.info(`[groq] analysis budget tier=${b.tier} inputCap=${b.inputCharCap} maxOut=${b.maxTokensOut}`);
 
-  const prompt =
-    `Analyse this legal document. Return ONLY valid JSON (no prose). ` +
-    `Max 3 items per list. Base findings strictly on the text.\n\n` +
-    `TITLE: ${title}\nTEXT:\n"""\n${cap(rawText, b.inputCharCap)}\n"""\n\n` +
-    `JSON schema:\n` +
-    `{"executiveSummary":{"documentPurpose":"","partiesInvolved":[],"importantDates":[],"financialObligations":[],"overallRiskLevel":"Medium","governingLaw":""},` +
-    `"simplifiedSections":[{"id":"s1","section":"1","heading":"","pageNumber":1,"originalText":"","simplifiedText":"","keyTakeaways":[]}],` +
-    `"risks":[{"id":"r1","riskType":"Obligations","title":"","explanation":"","whyItMatters":"","sourceClause":"","pageNumber":1,"sectionNumber":"","severity":"Medium","recommendation":""}],` +
-    `"checklist":[{"id":"c1","task":"","category":"Compliance","dueWindow":"","completed":false,"sourceRef":"","pageNumber":1}],` +
-    `"nextSteps":[{"id":"n1","title":"","description":"","actionType":"Review","urgency":"Before Signing"}],` +
-    `"lawyerPrep":{"documentTitle":"","caseSummary":"","partiesInvolved":[],"effectiveDates":{"startDate":"","endDate":"","noticeDeadline":""},"keyFacts":{"dates":[],"parties":[],"obligations":[],"risks":[]},"suggestedQuestions":[],"negotiationPoints":[]}}`;
+  // Create batches of chunks that fit inside inputCharCap
+  const batches: DocumentChunk[][] = [];
+  let currentBatch: DocumentChunk[] = [];
+  let currentBatchChars = 0;
 
-  try {
-    const completion = await tryModels(client, MODELS.ANALYSIS, {
-      messages: [
-        { role: "system", content: FIREWALL_SYSTEM + " Return valid JSON only." },
-        { role: "user",   content: prompt },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.1,
-      max_tokens: b.maxTokensOut,
-    });
-
-    const content = completion.choices[0]?.message?.content || "{}";
-    const parsed  = JSON.parse(content) as LegalDocumentAnalysis;
-    if (parsed.executiveSummary && parsed.simplifiedSections) return parsed;
-    return generateHeuristicAnalysis(title, rawText);
-  } catch (err) {
-    console.warn("[groq] Analysis: all models failed → heuristics:", err);
-    return generateHeuristicAnalysis(title, rawText);
+  for (const chunk of chunks) {
+    if (currentBatchChars + chunk.content.length > b.inputCharCap && currentBatch.length > 0) {
+      batches.push(currentBatch);
+      currentBatch = [];
+      currentBatchChars = 0;
+    }
+    currentBatch.push(chunk);
+    currentBatchChars += chunk.content.length;
   }
+  if (currentBatch.length > 0) batches.push(currentBatch);
+
+  // 1. Run deterministic heuristics across 100% of chunks to guarantee comprehensive coverage
+  const heuristicBase = generateHeuristicAnalysis(title, rawText, chunks);
+
+  const allAnalyses: LegalDocumentAnalysis[] = [heuristicBase];
+
+  // 2. Process all chunk batches through the AI model queue (eliminating silent truncation)
+  for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i];
+    const batchText = batch.map(c => `[Page ${c.pageNumber} | Section: ${c.section} - ${c.heading}]\n${c.content}`).join("\n\n");
+    
+    const prompt =
+      `Analyse this portion (Batch ${i+1}/${batches.length}) of the legal document. Return ONLY valid JSON (no prose). ` +
+      `Max 3 items per list. Base findings strictly on the text provided.\n\n` +
+      `TITLE: ${title}\nTEXT:\n"""\n${batchText}\n"""\n\n` +
+      `JSON schema:\n` +
+      `{"executiveSummary":{"documentPurpose":"","partiesInvolved":[],"importantDates":[],"financialObligations":[],"overallRiskLevel":"Medium","governingLaw":""},` +
+      `"simplifiedSections":[{"id":"s1","section":"1","heading":"","pageNumber":1,"originalText":"","simplifiedText":"","keyTakeaways":[]}],` +
+      `"risks":[{"id":"r1","riskType":"Obligations","title":"","explanation":"","whyItMatters":"","sourceClause":"","pageNumber":1,"sectionNumber":"","severity":"Medium","recommendation":""}],` +
+      `"checklist":[{"id":"c1","task":"","category":"Compliance","dueWindow":"","completed":false,"sourceRef":"","pageNumber":1}],` +
+      `"nextSteps":[{"id":"n1","title":"","description":"","actionType":"Review","urgency":"Before Signing"}],` +
+      `"lawyerPrep":{"documentTitle":"","caseSummary":"","partiesInvolved":[],"effectiveDates":{"startDate":"","endDate":"","noticeDeadline":""},"keyFacts":{"dates":[],"parties":[],"obligations":[],"risks":[]},"suggestedQuestions":[],"negotiationPoints":[]}}`;
+
+    try {
+      const completion = await tryModels(client, MODELS.ANALYSIS, {
+        messages: [
+          { role: "system", content: FIREWALL_SYSTEM + " Return valid JSON only." },
+          { role: "user",   content: prompt },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.1,
+        max_tokens: b.maxTokensOut,
+      });
+
+      const content = completion.choices[0]?.message?.content || "{}";
+      const parsed  = JSON.parse(content) as LegalDocumentAnalysis;
+      if (parsed.executiveSummary) allAnalyses.push(parsed);
+    } catch (err) {
+      console.warn(`[groq] Batch ${i+1}/${batches.length} AI parsing failed, falling back to heuristics:`, err);
+    }
+  }
+
+  // Aggregate and deduplicate findings from all batches
+  return aggregateAnalyses(allAnalyses, title);
 }
+
+function aggregateAnalyses(analyses: LegalDocumentAnalysis[], _title: string): LegalDocumentAnalysis {
+  const base = analyses[0];
+  const seenRiskTitles = new Set<string>();
+  const aggregatedRisks: RiskCard[] = [];
+  const aggregatedChecklist: ChecklistItem[] = [];
+  const aggregatedSimplified: SimplifiedSection[] = [];
+
+  for (const analysis of analyses) {
+    if (analysis.risks) {
+      for (const r of analysis.risks) {
+        if (!seenRiskTitles.has(r.title)) {
+          seenRiskTitles.add(r.title);
+          aggregatedRisks.push({ ...r, id: `risk-${aggregatedRisks.length}` });
+        }
+      }
+    }
+    if (analysis.checklist) {
+      for (const c of analysis.checklist) {
+        aggregatedChecklist.push({ ...c, id: `chk-${aggregatedChecklist.length}` });
+      }
+    }
+    if (analysis.simplifiedSections) {
+      for (const s of analysis.simplifiedSections) {
+        aggregatedSimplified.push({ ...s, id: `sec-${aggregatedSimplified.length}` });
+      }
+    }
+  }
+
+  // Return a new object — do NOT mutate the heuristic base reference
+  return {
+    ...base,
+    risks: aggregatedRisks,
+    checklist: aggregatedChecklist,
+    simplifiedSections: aggregatedSimplified,
+  };
+}
+
 
 // ─── 2. RAG Chat Q&A ──────────────────────────────────────────────────────────
 /**
@@ -185,11 +253,23 @@ export async function answerLegalQuestion(
   previousMessages: { role: string; content: string }[] = [],
   budget?: TokenBudget
 ): Promise<{ answer: string; sources: SourceReference[]; suggestedFollowUps: string[] }> {
+  if (!relevantChunks || relevantChunks.length === 0) {
+    return {
+      answer: "I couldn't find sufficient support for this answer in the uploaded document. Please check the wording of your question or verify that the relevant provision is included in the contract.",
+      sources: [],
+      suggestedFollowUps: [
+        "What are the main obligations under this contract?",
+        "What are the payment terms?",
+        "How can this agreement be terminated?",
+      ],
+    };
+  }
+
   const sources: SourceReference[] = relevantChunks.map((c) => ({
     pageNumber: c.pageNumber,
     section:    c.section,
     clause:     c.heading,
-    quote:      c.content.slice(0, 140).replace(/\n+/g, " ") + "…",
+    quote:      c.content.slice(0, CHAT_QUOTE_PREVIEW_CHARS).replace(/\n+/g, " ") + "…",
   }));
 
   const client = safeClient();
@@ -205,7 +285,7 @@ export async function answerLegalQuestion(
     .join("\n\n");
 
   const userMsg =
-    `EXCERPTS:\n${excerpts}\n\nQ: ${cap(question, 300)}\n\n` +
+    `EXCERPTS:\n${excerpts}\n\nQ: ${cap(question, CHAT_QUESTION_MAX_CHARS)}\n\n` +
     `Reply concisely citing page/section. ` +
     `If not in excerpts say "The document does not contain that information." ` +
     `End with:\nFOLLOW_UPS:\n- Q1\n- Q2\n- Q3`;
@@ -217,11 +297,11 @@ export async function answerLegalQuestion(
           role: "system",
           content: FIREWALL_SYSTEM + " Answer only about the provided excerpts.",
         },
-        ...previousMessages.slice(-4).map((m) => ({
+        ...previousMessages.slice(-CHAT_HISTORY_WINDOW).map((m) => ({
           role: (m.role === "assistant" || m.role === "ai"
             ? "assistant"
             : "user") as "assistant" | "user",
-          content: cap(m.content, 300),
+          content: cap(m.content, CHAT_QUESTION_MAX_CHARS),
         })),
         { role: "user", content: userMsg },
       ],

@@ -6,10 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test --import jiti/register tests/*.test.ts"
   },
   "dependencies": {
-    "@google/genai": "^2.24.0",
     "@types/canvas-confetti": "^1.9.0",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
@@ -17,7 +17,6 @@
     "groq-sdk": "^1.6.0",
     "lucide-react": "^1.47.0",
     "next": "16.3.6",
-    "pdf-parse": "^2.4.5",
     "pdfjs-dist": "^3.11.174",
     "react": "19.2.8",
     "react-dom": "19.2.8",

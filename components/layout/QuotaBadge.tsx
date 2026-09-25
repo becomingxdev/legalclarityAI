@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Zap } from "lucide-react";
 import { useAuth } from "@/lib/firebase/auth-context";
+import { QUOTA_POLL_INTERVAL_MS } from "@/lib/constants";
 
 interface QuotaData {
   used: number;
@@ -16,11 +17,14 @@ export const QuotaBadge: React.FC = () => {
   const [quota, setQuota] = useState<QuotaData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchQuota = async () => {
+  const fetchQuota = React.useCallback(async () => {
     try {
+      const { auth } = await import("@/lib/firebase/config");
+      const token = await auth.currentUser?.getIdToken();
+
       const res = await fetch("/api/quota", {
         headers: {
-          ...(user?.uid ? { "x-user-id": user.uid } : {}),
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
         },
       });
       if (res.ok) {
@@ -32,14 +36,23 @@ export const QuotaBadge: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchQuota();
-    // Refresh quota every 30 seconds to keep it updated as the user takes actions
-    const interval = setInterval(fetchQuota, 30000);
-    return () => clearInterval(interval);
-  }, [user?.uid]);
+    let isSubscribed = true;
+    Promise.resolve().then(async () => {
+      if (isSubscribed) {
+        await fetchQuota();
+      }
+    });
+
+    // Refresh quota periodically to keep it updated as the user takes actions
+    const interval = setInterval(fetchQuota, QUOTA_POLL_INTERVAL_MS);
+    return () => {
+      isSubscribed = false;
+      clearInterval(interval);
+    };
+  }, [fetchQuota, user?.uid]);
 
   if (loading || !quota) return null;
 

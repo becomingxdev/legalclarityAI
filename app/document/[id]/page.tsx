@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { LegalDocument } from "@/types/legal";
@@ -15,8 +15,6 @@ import {
   Compass,
   Briefcase,
   ArrowLeft,
-  Download,
-  Share2,
   GitCompare,
 } from "lucide-react";
 import { OverviewTab } from "@/components/document/OverviewTab";
@@ -29,12 +27,15 @@ import { NextStepsTab } from "@/components/document/NextStepsTab";
 import { LawyerPrepTab } from "@/components/document/LawyerPrepTab";
 
 import { useAuth } from "@/lib/firebase/auth-context";
+import { useClientMount } from "@/lib/hooks/useClientMount";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function DocumentWorkspacePage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
   const { user, loading } = useAuth();
+  const isMounted = useClientMount();
 
   const [document, setDocument] = useState<LegalDocument | null>(null);
   const [activeTab, setActiveTab] = useState<string>("overview");
@@ -43,8 +44,6 @@ export default function DocumentWorkspacePage() {
     page?: number;
     search?: string;
   }>({});
-  const mountedRef = useRef(false);
-  const [isMounted, setIsMounted] = useState(false);
 
   const handleNavigateToSource = (page?: number, section?: string, chunkId?: string) => {
     setSourceHighlight({ page, chunkId, search: section });
@@ -67,14 +66,7 @@ export default function DocumentWorkspacePage() {
             }
           });
         }
-        if (!mountedRef.current) {
-          mountedRef.current = true;
-          setIsMounted(true);
-        }
       });
-    } else if (!mountedRef.current) {
-      mountedRef.current = true;
-      setIsMounted(true);
     }
   }, [id, user, loading, router]);
 
@@ -158,13 +150,17 @@ export default function DocumentWorkspacePage() {
 
       {/* 8-Tab Navigation Bar */}
       <div className="overflow-x-auto pb-1 no-scrollbar border-b border-slate-200 dark:border-slate-800">
-        <nav className="flex space-x-1 sm:space-x-2">
+        <nav className="flex space-x-1 sm:space-x-2" role="tablist">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
+                role="tab"
+                aria-selected={isActive}
+                aria-controls={`panel-${tab.id}`}
+                id={`tab-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2.5 text-xs font-semibold transition ${
                   isActive
@@ -192,46 +188,48 @@ export default function DocumentWorkspacePage() {
       </div>
 
       {/* Tab Panels */}
+      {/* Kept mounted to retain state, toggled using 'hidden' class */}
       <div className="pt-2">
-        {activeTab === "overview" && (
-          <OverviewTab document={document} onNavigateToTab={(t) => setActiveTab(t)} />
-        )}
-        {activeTab === "simplified" && (
-          <SimplifiedTab
-            document={document}
-            onNavigateToSource={handleNavigateToSource}
-          />
-        )}
-        {activeTab === "risks" && (
-          <RisksTab
-            document={document}
-            onNavigateToSource={handleNavigateToSource}
-          />
-        )}
-        {activeTab === "checklist" && (
-          <ChecklistTab
-            document={document}
-            onNavigateToSource={handleNavigateToSource}
-          />
-        )}
-        {activeTab === "sources" && (
-          <SourcesTab
-            document={document}
-            initialSearch={sourceHighlight.search}
-            highlightChunkId={sourceHighlight.chunkId}
-            highlightPage={sourceHighlight.page}
-          />
-        )}
-        {activeTab === "chat" && (
-          <ChatTab
-            document={document}
-            onNavigateToChunk={(page, section) => handleNavigateToSource(page, section)}
-          />
-        )}
-        {activeTab === "nextSteps" && (
-          <NextStepsTab document={document} onNavigateToTab={(t) => setActiveTab(t)} />
-        )}
-        {activeTab === "lawyerPrep" && <LawyerPrepTab document={document} />}
+        <div role="tabpanel" id="panel-overview" aria-labelledby="tab-overview" className={activeTab === "overview" ? "" : "hidden"}>
+          <ErrorBoundary label="Overview Tab">
+            <OverviewTab document={document} onNavigateToTab={(t) => setActiveTab(t)} />
+          </ErrorBoundary>
+        </div>
+        <div role="tabpanel" id="panel-simplified" aria-labelledby="tab-simplified" className={activeTab === "simplified" ? "" : "hidden"}>
+          <ErrorBoundary label="Simplified Version Tab">
+            <SimplifiedTab document={document} onNavigateToSource={handleNavigateToSource} />
+          </ErrorBoundary>
+        </div>
+        <div role="tabpanel" id="panel-risks" aria-labelledby="tab-risks" className={activeTab === "risks" ? "" : "hidden"}>
+          <ErrorBoundary label="Risks & Clauses Tab">
+            <RisksTab document={document} onNavigateToSource={handleNavigateToSource} />
+          </ErrorBoundary>
+        </div>
+        <div role="tabpanel" id="panel-checklist" aria-labelledby="tab-checklist" className={activeTab === "checklist" ? "" : "hidden"}>
+          <ErrorBoundary label="Checklist Tab">
+            <ChecklistTab document={document} onNavigateToSource={handleNavigateToSource} />
+          </ErrorBoundary>
+        </div>
+        <div role="tabpanel" id="panel-sources" aria-labelledby="tab-sources" className={activeTab === "sources" ? "" : "hidden"}>
+          <ErrorBoundary label="Sources Tab">
+            <SourcesTab document={document} initialSearch={sourceHighlight.search} highlightChunkId={sourceHighlight.chunkId} highlightPage={sourceHighlight.page} />
+          </ErrorBoundary>
+        </div>
+        <div role="tabpanel" id="panel-chat" aria-labelledby="tab-chat" className={activeTab === "chat" ? "" : "hidden"}>
+          <ErrorBoundary label="Chat Tab">
+            <ChatTab document={document} onNavigateToChunk={(page, section) => handleNavigateToSource(page, section)} />
+          </ErrorBoundary>
+        </div>
+        <div role="tabpanel" id="panel-nextSteps" aria-labelledby="tab-nextSteps" className={activeTab === "nextSteps" ? "" : "hidden"}>
+          <ErrorBoundary label="Next Steps Tab">
+            <NextStepsTab document={document} onNavigateToTab={(t) => setActiveTab(t)} />
+          </ErrorBoundary>
+        </div>
+        <div role="tabpanel" id="panel-lawyerPrep" aria-labelledby="tab-lawyerPrep" className={activeTab === "lawyerPrep" ? "" : "hidden"}>
+          <ErrorBoundary label="Lawyer Prep Tab">
+            <LawyerPrepTab document={document} />
+          </ErrorBoundary>
+        </div>
       </div>
     </div>
   );

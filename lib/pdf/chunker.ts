@@ -1,4 +1,5 @@
 import { DocumentChunk } from "@/types/legal";
+import { CHUNK_WORDS_PER_PAGE, CHUNK_MAX_CHARS } from "@/lib/constants";
 
 /**
  * Clean and normalize legal document text
@@ -26,7 +27,7 @@ export function cleanLegalText(text: string): string {
 export function chunkLegalDocument(
   rawText: string,
   documentId: string,
-  estimatedWordsPerPage = 400
+  estimatedWordsPerPage = CHUNK_WORDS_PER_PAGE
 ): DocumentChunk[] {
   const cleaned = cleanLegalText(rawText);
   if (!cleaned) return [];
@@ -97,8 +98,8 @@ export function chunkLegalDocument(
 
     currentLines.push(trimmed);
 
-    // If chunk gets too long (~1500 chars), break at natural paragraph boundary
-    if (currentLines.join("\n").length > 1400 && trimmed === "") {
+    // If chunk gets too long, break at natural paragraph boundary
+    if (currentLines.join("\n").length > CHUNK_MAX_CHARS && trimmed === "") {
       pushChunk();
     }
   }

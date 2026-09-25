@@ -31,11 +31,10 @@ export async function POST(req: NextRequest) {
           for (let i = 1; i <= numPages; i++) {
             const page = await pdfDocument.getPage(i);
             const textContent = await page.getTextContent();
-            pageTexts.push(
-              textContent.items
-                .map((item: { str: string }) => item.str)
-                .join(" ")
-            );
+            const pageStr = textContent.items
+              .map((item: { str: string }) => item.str)
+              .join(" ");
+            pageTexts.push(`--- Page ${i} ---\n${pageStr}`);
           }
           rawText = pageTexts.join("\n\n");
         } catch (pdfErr) {

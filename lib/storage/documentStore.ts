@@ -1,5 +1,6 @@
 import { LegalDocument } from "@/types/legal";
 import { db, auth } from "@/lib/firebase/config";
+import { FIRESTORE_RAW_TEXT_MAX_CHARS } from "@/lib/constants";
 import {
   collection,
   doc as firestoreDoc,
@@ -86,8 +87,8 @@ async function deleteFromIDB(id: string): Promise<void> {
 // Firestore has a 1MB limit per document and disallows `undefined` values.
 function sanitizeForFirestore(docData: LegalDocument) {
   const safeCopy = JSON.parse(JSON.stringify(docData));
-  if (typeof safeCopy.rawText === "string" && safeCopy.rawText.length > 300000) {
-    safeCopy.rawText = safeCopy.rawText.slice(0, 300000) + "\n...[truncated for cloud storage]";
+  if (typeof safeCopy.rawText === "string" && safeCopy.rawText.length > FIRESTORE_RAW_TEXT_MAX_CHARS) {
+    safeCopy.rawText = safeCopy.rawText.slice(0, FIRESTORE_RAW_TEXT_MAX_CHARS) + "\n...[truncated for cloud storage]";
   }
   return safeCopy;
 }
@@ -185,6 +186,45 @@ export async function saveDocument(document: LegalDocument, userId?: string): Pr
       await setDoc(docRef, sanitized, { merge: true });
     } catch (err) {
       console.error("Failed to save document to Firebase Firestore:", err);
+    }
+  }
+}
+
+/**
+ * Efficiently persists ONLY the chatHistory field for a document.
+ * Avoids writing rawText, chunks, and analysis on every chat turn.
+ */
+export async function saveChatHistory(
+  documentId: string,
+  userId?: string,
+  chatHistory: import("@/types/legal").ChatMessage[] = []
+): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  // 1. Patch in IndexedDB (read-modify-write the stored record)
+  try {
+    const idb = await getDb();
+    const existing = await new Promise<import("@/types/legal").LegalDocument | undefined>((resolve, reject) => {
+      const tx = idb.transaction(STORE_NAME, "readonly");
+      const req = tx.objectStore(STORE_NAME).get(documentId);
+      req.onsuccess = () => resolve(req.result as import("@/types/legal").LegalDocument | undefined);
+      req.onerror = () => reject(req.error);
+    });
+    if (existing) {
+      await saveToIDB({ ...existing, chatHistory });
+    }
+  } catch (e) {
+    console.warn("IDB chatHistory patch error", e);
+  }
+
+  // 2. Patch in Firestore — merge only the chatHistory field
+  const uid = getActiveUserId(userId);
+  if (uid && db) {
+    try {
+      const docRef = firestoreDoc(db, "users", uid, "documents", documentId);
+      await setDoc(docRef, { chatHistory }, { merge: true });
+    } catch (err) {
+      console.warn("Firestore chatHistory patch error:", err);
     }
   }
 }
