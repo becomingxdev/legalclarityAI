@@ -113,12 +113,16 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
       const docId = "doc-" + Date.now();
       const chunks = chunkLegalDocument(rawText, docId);
 
-      setUploadStep("Running live AI analysis with Groq (LLaMA 3.3)...");
+      const pageCount = Math.max(1, chunks[chunks.length - 1]?.pageNumber || 1);
+      setUploadStep(`Running AI analysis (${pageCount} pages detected)…`);
 
       const analyzeRes = await fetch("/api/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: docTitle, rawText, chunks }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(user?.uid ? { "x-user-id": user.uid } : {}),
+        },
+        body: JSON.stringify({ title: docTitle, rawText, chunks, pageCount }),
       });
 
       if (!analyzeRes.ok) {
@@ -135,7 +139,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
         fileName,
         fileSize,
         uploadDate: new Date().toISOString(),
-        pageCount: Math.max(1, chunks[chunks.length - 1]?.pageNumber || 1),
+        pageCount,
         rawText,
         chunks,
         analysis,

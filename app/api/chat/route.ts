@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { answerLegalQuestion } from "@/lib/ai/groq";
 import { retrieveRelevantChunks } from "@/lib/retrieval/rag";
 import { DocumentChunk } from "@/types/legal";
+import { calcQABudget } from "@/lib/ai/token-budget";
+import { resolveUserId, consumeQuota, quotaSnapshot } from "@/lib/ai/user-quota";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { question, chunks, previousMessages } = body as {
+    const { question, chunks, previousMessages, pageCount } = body as {
       question: string;
       chunks: DocumentChunk[];
       previousMessages?: { role: string; content: string }[];
+      pageCount?: number;
     };
 
     if (!question || !chunks || chunks.length === 0) {
@@ -19,16 +22,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Retrieve the top grounded chunks for this specific question
-    const relevantChunks = retrieveRelevantChunks(question, chunks, 5);
+    // ── Dynamic budget based on document size ──
+    const pages  = pageCount ?? 0;
+    const budget = calcQABudget(pages, chunks.length);
 
-    const result = await answerLegalQuestion(question, relevantChunks, previousMessages);
+    // ── Per-user quota check ──
+    const userId  = resolveUserId(req);
+    const allowed = consumeQuota(userId, budget.estimatedInputTokens + budget.maxTokensOut);
+
+    // Retrieve top-N chunks according to budget
+    const relevantChunks = retrieveRelevantChunks(question, chunks, budget.ragChunkCount);
+
+    const result = await answerLegalQuestion(
+      question,
+      relevantChunks,
+      previousMessages,
+      allowed ? budget : undefined  // undefined → function uses chunk fallback path
+    );
+
+    // If quota was denied, override answer with a polite notice appended
+    const answer = !allowed
+      ? result.answer + "\n\n_⚠️ Daily AI quota reached — answers are based on document excerpts only._"
+      : result.answer;
 
     return NextResponse.json({
       success: true,
-      answer: result.answer,
+      answer,
       sources: result.sources,
       suggestedFollowUps: result.suggestedFollowUps,
+      meta: { tier: budget.tier, quota: quotaSnapshot(userId) },
     });
   } catch (error: unknown) {
     console.error("API /api/chat error:", error);

@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/firebase/auth-context";
 import { Scale, LayoutDashboard, GitCompare, LogOut } from "lucide-react";
 
+import { QuotaBadge } from "./QuotaBadge";
+
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
   const router = useRouter();
@@ -58,6 +60,11 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center gap-2">
           {user ? (
             <>
+              {/* Quota display */}
+              <div className="mr-2">
+                <QuotaBadge />
+              </div>
+              
               {/* Avatar */}
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600/30 text-[11px] font-bold text-indigo-300 ring-1 ring-indigo-500/30">
                 {(user.displayName || user.email || "U")[0].toUpperCase()}

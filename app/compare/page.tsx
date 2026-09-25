@@ -64,8 +64,14 @@ function CompareContent() {
     try {
       const res = await fetch("/api/compare", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ docA, docB }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(user?.uid ? { "x-user-id": user.uid } : {}),
+        },
+        body: JSON.stringify({
+          docA: { ...docA, pageCount: docA.pageCount ?? 0 },
+          docB: { ...docB, pageCount: docB.pageCount ?? 0 },
+        }),
       });
 
       if (!res.ok) {

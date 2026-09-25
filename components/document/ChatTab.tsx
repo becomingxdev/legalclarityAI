@@ -50,10 +50,17 @@ export const ChatTab: React.FC<ChatTabProps> = ({ document, onNavigateToChunk })
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          // Let the server resolve the per-user quota bucket
+          ...(document.userId && document.userId !== "anonymous"
+            ? { "x-user-id": document.userId }
+            : {}),
+        },
         body: JSON.stringify({
           question: q,
           chunks: document.chunks,
+          pageCount: document.pageCount ?? 0,
           previousMessages: newHistory.map((m) => ({
             role: m.sender === "user" ? "user" : "assistant",
             content: m.text,
