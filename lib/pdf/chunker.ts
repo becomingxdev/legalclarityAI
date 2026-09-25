@@ -1,5 +1,5 @@
 import { DocumentChunk } from "@/types/legal";
-import { CHUNK_WORDS_PER_PAGE, CHUNK_MAX_CHARS } from "@/lib/constants";
+import { CHUNK_WORDS_PER_PAGE, CHUNK_MAX_CHARS } from "../constants";
 
 /**
  * Clean and normalize legal document text

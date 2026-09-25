@@ -4,11 +4,16 @@ import { calcComparisonBudget } from "@/lib/ai/token-budget";
 import { resolveUserId, consumeQuota, quotaSnapshot } from "@/lib/ai/user-quota";
 import { CHARS_PER_PAGE } from "@/lib/constants";
 
+/** Maximum permitted text characters per compared document */
+const MAX_DOC_TEXT_CHARS = 500_000;
+/** Maximum title length */
+const MAX_TITLE_CHARS = 200;
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as Record<string, unknown>;
 
-    // ── Runtime validation ────────────────────────────────────────────────────
+    // ── Runtime validation & DoS Defense ──────────────────────────────────────
     const { docA, docB } = body;
 
     if (
@@ -34,6 +39,16 @@ export async function POST(req: NextRequest) {
 
     const safeDocA = docA as { id: string; title: string; rawText: string; pageCount?: number };
     const safeDocB = docB as { id: string; title: string; rawText: string; pageCount?: number };
+
+    if (safeDocA.rawText.length > MAX_DOC_TEXT_CHARS || safeDocB.rawText.length > MAX_DOC_TEXT_CHARS) {
+      return NextResponse.json(
+        { error: `One or both documents exceed maximum permitted limit of ${MAX_DOC_TEXT_CHARS.toLocaleString()} characters` },
+        { status: 413 }
+      );
+    }
+
+    safeDocA.title = (safeDocA.title || "Document A").slice(0, MAX_TITLE_CHARS);
+    safeDocB.title = (safeDocB.title || "Document B").slice(0, MAX_TITLE_CHARS);
     // ─────────────────────────────────────────────────────────────────────────
 
     // ── Dynamic budget based on both documents' sizes ──
@@ -44,8 +59,8 @@ export async function POST(req: NextRequest) {
       safeDocB.rawText.length
     );
 
-    // ── Per-user quota check ──
-    const userId = resolveUserId(req);
+    // ── Per-user quota check (asynchronous cryptographic verification) ──
+    const userId = await resolveUserId(req);
     const allowed = consumeQuota(userId, budget.estimatedInputTokens + budget.maxTokensOut);
 
     if (!allowed) {

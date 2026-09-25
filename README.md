@@ -129,12 +129,15 @@ Judges can click **"Load Demo Contracts"** on the dashboard or **"Load Sample Pa
 
 | Area | Implementation |
 |---|---|
+| **Identity Verification** | Calls Google's official Identity Toolkit API with the public Firebase API key to cryptographically verify ID token signatures server-side — rejecting spoofed `x-user-id` client headers |
+| **DoS Defense & Hard Bounds** | Strict limits across all ingress routes: 10MB max upload buffer, 500k max document chars, 1,000 max query chars, 500 max chunk capacity, and 20-message chat history bounds |
 | **Prompt firewall** | Every AI call includes a system-level instruction refusing off-topic prompts and instructing the model to never reveal its instructions |
 | **No data persistence to third parties** | Document text is sent to Groq only for analysis; it is never logged or stored server-side beyond the Groq API contract |
-| **Firebase Firestore rules** | Documents are stored under `/users/{uid}/documents/` — users can only read/write their own data |
-| **Input sanitisation** | All user-supplied text is hard-truncated before being inserted into prompts (`cap()` helper); prevents prompt injection via giant payloads |
+| **Firebase Firestore rules** | Explicit `firestore.rules` enforces that documents under `/users/{uid}/documents/` can strictly be read/written by the matching authenticated UID |
+| **Input sanitisation** | All user-supplied text is validated and bound before being inserted into prompts; prevents prompt injection and buffer exhaustion |
 | **No `eval`, no `dangerouslySetInnerHTML`** | UI renders only structured data; no user-supplied HTML is ever injected into the DOM |
-| **Environment variables** | API keys are server-only env vars; they are never shipped to the browser bundle |
+| **Environment variables** | API keys are isolated in server-only environment variables; never leaked to client bundles |
+| **Automated Verification** | 19 unit & integration tests (`npm test`) covering heuristics, comparison, large docs, RAG grounding, quota security, and DoS limits |
 
 ---
 

@@ -1,24 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chunkLegalDocument } from "@/lib/pdf/chunker";
 
+/** Maximum permitted upload file size: 10MB (DoS defense) */
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+/** Maximum permitted text characters: 500,000 (prevents memory & token exhaustion) */
+const MAX_TEXT_CHARS = 500_000;
+/** Maximum title length */
+const MAX_TITLE_CHARS = 200;
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const directText = formData.get("text") as string | null;
-    const title = (formData.get("title") as string) || (file ? file.name.replace(/\.[^/.]+$/, "") : "Untitled Legal Document");
+    const rawTitle = (formData.get("title") as string) || (file ? file.name.replace(/\.[^/.]+$/, "") : "Untitled Legal Document");
+    const title = rawTitle.slice(0, MAX_TITLE_CHARS).trim() || "Untitled Legal Document";
+
+    // ── Hard Bounds / DoS Defense ─────────────────────────────────────────────
+    if (file && file.size > MAX_FILE_BYTES) {
+      return NextResponse.json(
+        { error: "File exceeds maximum permitted upload limit of 10MB" },
+        { status: 413 }
+      );
+    }
+
+    if (directText && directText.length > MAX_TEXT_CHARS) {
+      return NextResponse.json(
+        { error: `Document text exceeds maximum permitted limit of ${MAX_TEXT_CHARS.toLocaleString()} characters` },
+        { status: 413 }
+      );
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     let rawText = "";
 
     if (file) {
       const buffer = Buffer.from(await file.arrayBuffer());
+      if (buffer.byteLength > MAX_FILE_BYTES) {
+        return NextResponse.json(
+          { error: "File buffer exceeds maximum permitted upload limit of 10MB" },
+          { status: 413 }
+        );
+      }
+
       const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type.includes("pdf");
 
       if (isPdf) {
         try {
           // Use standard (non-legacy) build — text extraction does NOT need canvas
           const pdfjsLib = await import("pdfjs-dist/build/pdf.js");
-          // Stub out the NodeCanvasFactory so pdfjs doesn't try to require('canvas')
           const uint8Array = new Uint8Array(buffer);
           const loadingTask = pdfjsLib.getDocument({
             data: uint8Array,
@@ -53,6 +83,13 @@ export async function POST(req: NextRequest) {
 
     if (!rawText.trim()) {
       return NextResponse.json({ error: "Extracted document text was empty" }, { status: 400 });
+    }
+
+    if (rawText.length > MAX_TEXT_CHARS) {
+      return NextResponse.json(
+        { error: `Extracted text (${rawText.length.toLocaleString()} chars) exceeds maximum permitted limit of ${MAX_TEXT_CHARS.toLocaleString()} characters` },
+        { status: 413 }
+      );
     }
 
     const documentId = "doc-" + Date.now();
