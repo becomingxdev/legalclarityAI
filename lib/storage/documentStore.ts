@@ -209,3 +209,65 @@ export async function deleteDocumentById(id: string, userId?: string): Promise<v
     }
   }
 }
+
+/**
+ * Seeds high-quality demo contracts (Employment Agreement, SaaS v1, and SaaS v2 Redline)
+ * so users and judges can test all 8 capabilities and contract comparison instantly.
+ */
+export async function seedSampleDocuments(userId?: string): Promise<LegalDocument[]> {
+  const { chunkLegalDocument } = await import("@/lib/pdf/chunker");
+  const { generateHeuristicAnalysis } = await import("@/lib/ai/heuristics");
+  const {
+    SAMPLE_EMPLOYMENT_AGREEMENT,
+    SAMPLE_SAAS_CONTRACT,
+    SAMPLE_REVISED_SAAS_CONTRACT,
+  } = await import("@/lib/sample-data/sampleContracts");
+
+  const samples = [
+    SAMPLE_EMPLOYMENT_AGREEMENT,
+    SAMPLE_SAAS_CONTRACT,
+    SAMPLE_REVISED_SAAS_CONTRACT,
+  ];
+
+  const uid = getActiveUserId(userId) || "demo-user";
+  const created: LegalDocument[] = [];
+
+  for (const s of samples) {
+    if (!s.rawText || !s.title || !s.id) continue;
+    const chunks = chunkLegalDocument(s.rawText, s.id);
+    const analysis = generateHeuristicAnalysis(s.title, s.rawText);
+
+    const fullDoc: LegalDocument = {
+      id: s.id,
+      userId: uid,
+      title: s.title,
+      fileName: s.fileName || `${s.title}.pdf`,
+      fileSize: s.fileSize || 500000,
+      uploadDate: s.uploadDate || new Date().toISOString(),
+      rawText: s.rawText,
+      pageCount: s.pageCount || Math.max(1, chunks[chunks.length - 1]?.pageNumber || 1),
+      chunks,
+      analysis,
+      status: "ready",
+      chatHistory: [
+        {
+          id: `msg-${s.id}-init`,
+          sender: "ai",
+          text: `Analysis complete for **${s.title}**. You can explore the simplified breakdown, review flagged risks and checklist items, or ask questions grounded in this document's text.`,
+          timestamp: new Date().toISOString(),
+          suggestedFollowUps: [
+            "Can I terminate this agreement early?",
+            "What notice period is required?",
+            "What are the payment penalties?",
+            "What are my confidentiality obligations?",
+          ],
+        },
+      ],
+    };
+
+    await saveDocument(fullDoc, uid);
+    created.push(fullDoc);
+  }
+
+  return created;
+}

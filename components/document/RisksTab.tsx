@@ -15,9 +15,10 @@ import {
 
 interface RisksTabProps {
   document: LegalDocument;
+  onNavigateToSource?: (page?: number, section?: string, chunkId?: string) => void;
 }
 
-export const RisksTab: React.FC<RisksTabProps> = ({ document }) => {
+export const RisksTab: React.FC<RisksTabProps> = ({ document, onNavigateToSource }) => {
   const risks = Array.isArray(document.analysis?.risks) ? document.analysis.risks : [];
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [selectedSeverity, setSelectedSeverity] = useState<string>("All");
@@ -174,10 +175,21 @@ export const RisksTab: React.FC<RisksTabProps> = ({ document }) => {
                     )}
 
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-mono text-slate-600 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-300">
-                      <span className="font-sans font-bold block mb-1 text-[10px] text-slate-400 uppercase tracking-wider">
-                        Source Provision (Page {risk.pageNumber}):
-                      </span>
-                      "{risk.sourceClause}"
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-sans font-bold text-[10px] text-slate-400 uppercase tracking-wider">
+                          Source Provision (Page {risk.pageNumber}):
+                        </span>
+                        {onNavigateToSource && (
+                          <button
+                            type="button"
+                            onClick={() => onNavigateToSource(risk.pageNumber, risk.sectionNumber)}
+                            className="font-sans text-[11px] font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
+                          >
+                            View in Document →
+                          </button>
+                        )}
+                      </div>
+                      &ldquo;{risk.sourceClause}&rdquo;
                     </div>
                   </div>
                 )}

@@ -85,3 +85,99 @@ SECTION 7. GENERAL PROVISIONS
 7.1 Governing Law. State of Delaware. Mandatory binding arbitration.
 7.2 Non-Solicitation. 24 months post-termination [MODIFIED: Extended from 12 months] with liquidated damages of $100,000 per solicited employee [ADDED].`,
 };
+
+export const SAMPLE_EMPLOYMENT_AGREEMENT: Partial<LegalDocument> = {
+  id: "executive-employment-agreement-v1",
+  title: "Executive Employment Agreement (TechCorp)",
+  fileName: "Executive_Employment_Agreement_Final.pdf",
+  fileSize: 624510,
+  pageCount: 8,
+  uploadDate: "2025-01-10T09:00:00.000Z",
+  status: "ready",
+  rawText: `EXECUTIVE EMPLOYMENT & CONFIDENTIALITY AGREEMENT
+THIS EMPLOYMENT AGREEMENT (the "Agreement") is dated as of January 10, 2025 (the "Effective Date"), by and between TechCorp Solutions Inc., a Delaware corporation (the "Company"), and Alex Mercer ("Executive" or "Employee").
+
+SECTION 1. POSITION, DUTIES & RESPONSIBILITIES
+1.1 Position. The Company hereby employs Executive as Senior Director of Engineering, reporting directly to the Chief Technology Officer (CTO). Executive shall devote full business time, attention, and effort to the business affairs and operations of the Company.
+1.2 Standard of Conduct. Executive shall faithfully comply with all corporate governance policies, codes of ethics, and security guidelines established by the Board of Directors.
+
+SECTION 2. COMPENSATION, BONUS & EQUITY VESTING
+2.1 Base Salary. The Company shall pay Executive an initial annual base salary of $210,000, payable in semi-monthly installments in accordance with standard payroll practices, subject to statutory withholdings.
+2.2 Discretionary Incentive Bonus. Executive shall be eligible for an annual target performance bonus of up to 25% of Base Salary, contingent upon achievement of departmental objectives approved by the Board.
+2.3 Stock Option Grant. Subject to Board approval, Executive shall receive an option to purchase 45,000 shares of Common Stock, vesting over a four (4) year schedule with a one (1) year cliff (25% vesting after 12 months, followed by monthly equal increments).
+
+SECTION 3. EMPLOYEE BENEFITS & REIMBURSEMENT
+3.1 Benefits. Executive shall be eligible to participate in group health insurance, 401(k) matching up to 4%, dental, vision, and disability insurance plans.
+3.2 Paid Time Off. Executive shall accrue twenty (20) days of paid vacation per calendar year. Accrued unused vacation may not roll over more than five (5) days into the subsequent calendar year.
+3.3 Expense Reimbursement. The Company shall reimburse reasonable and documented business travel expenses within thirty (30) days of submission.
+
+SECTION 4. PROPRIETARY INFORMATION, INVENTIONS & IP ASSIGNMENT
+4.1 Confidential Information. Executive acknowledges that the Company's proprietary software architectures, algorithmic trade secrets, customer pricing, and unreleased product roadmaps constitute Confidential Information. Executive agrees to hold all such information in strict trust and confidence during employment and perpetually thereafter.
+4.2 Assignment of Inventions. All patents, copyrights, algorithms, trademarks, and technological discoveries conceived, authored, or reduced to practice by Executive during the term of employment that relate directly to the Company's current or prospective business shall belong exclusively to the Company as "works made for hire."
+
+SECTION 5. RESTRICTIVE COVENANTS: NON-COMPETITION & NON-SOLICITATION
+5.1 Non-Competition. During Executive's employment and for a period of eighteen (18) months following the termination of employment for any reason, Executive shall not, directly or indirectly, engage in, consult for, or hold an equity interest in any business enterprise that develops competing enterprise document processing software within North America.
+5.2 Non-Solicitation of Employees. For twenty-four (24) months post-termination, Executive shall not encourage, solicit, or recruit any employee, engineer, or contractor of the Company to leave their employment.
+5.3 Non-Solicitation of Customers. For eighteen (18) months post-termination, Executive shall not solicit or divert any customer or prospective client with whom Executive had material business interaction during the preceding twelve months.
+
+SECTION 6. SEVERANCE & CHANGE IN CONTROL
+6.1 Involuntary Termination Without Cause. If the Company terminates Executive's employment without Cause, the Company shall pay severance equal to three (3) months Base Salary and three months of COBRA premiums, conditioned upon Executive executing a general release of claims in favor of the Company within forty-five (45) days.
+6.2 Termination for Cause. If terminated for Cause (defined as material fraud, felony conviction, gross negligence, or unexcused material breach of Section 4 or 5), all salary and benefit accruals cease immediately, and no severance shall be payable.
+
+SECTION 7. DISPUTE RESOLUTION & ARBITRATION
+7.1 Mandatory Binding Arbitration. Any controversy or legal claim arising out of or relating to this Agreement, including breach or enforceability, shall be resolved through binding confidential arbitration administered by JAMS in San Francisco, California, under its Employment Arbitration Rules. Executive explicitly waives the right to trial by jury or participation in a class action lawsuit.
+
+SECTION 8. TERM & TERMINATION
+8.1 At-Will Employment. Executive's employment is at-will, meaning either party may terminate the employment relationship at any time, with or without cause.
+8.2 Notice of Termination. In the event of voluntary resignation by Executive, Executive shall provide thirty (30) days' prior written notice to the Company. In the event of termination by the Company without Cause, the Company shall provide thirty (30) days' written notice or pay base salary in lieu thereof.
+8.3 Return of Company Property. Upon termination, Executive shall promptly return all laptops, hardware, source code repositories, access tokens, and confidential files within forty-eight (48) hours.
+
+SECTION 9. GOVERNING LAW & MISCELLANEOUS
+9.1 Governing Law. This Agreement shall be governed by and interpreted under the laws of the State of California, except that enforceability of restrictive covenants shall be construed to the fullest extent permitted under applicable labor codes.
+9.2 Entire Agreement. This Agreement constitutes the complete understanding between the parties and supersedes all prior verbal or written understandings.`,
+};
+
+export const SAMPLE_COMMERCIAL_LEASE: Partial<LegalDocument> = {
+  id: "commercial-office-lease-v1",
+  title: "Commercial Office Building Lease (Triple Net)",
+  fileName: "Commercial_Property_Lease_2025.pdf",
+  fileSize: 589200,
+  pageCount: 6,
+  uploadDate: "2025-01-20T11:00:00.000Z",
+  status: "ready",
+  rawText: `COMMERCIAL REAL ESTATE LEASE AGREEMENT (TRIPLE NET / NNN)
+THIS COMMERCIAL LEASE AGREEMENT (the "Lease") is entered into as of January 20, 2025, by and between Beacon Commercial Properties LP ("Landlord"), and Apex Media Group Inc. ("Tenant").
+
+SECTION 1. PREMISES & LEASE TERM
+1.1 Leased Premises. Landlord leases to Tenant Suite 400 comprising approximately 4,200 rentable square feet located at 750 Montgomery Street, San Francisco, CA.
+1.2 Term. The Lease term shall be for sixty (60) full calendar months commencing on March 1, 2025 (Commencement Date) and terminating on February 28, 2030 (Expiration Date).
+
+SECTION 2. RENT, ESCALATION & SECURITY DEPOSIT
+2.1 Monthly Base Rent. Tenant shall pay Base Rent in the initial amount of $18,500.00 per month, due on the first (1st) day of each calendar month.
+2.2 Annual Escalation. On each anniversary of the Commencement Date, Base Rent shall increase by three and one-half percent (3.5%) over the preceding year's Base Rent.
+2.3 Security Deposit. Upon execution of this Lease, Tenant shall deposit with Landlord the sum of $37,000.00 (two months' rent) as security for faithful performance.
+2.4 Late Charges. Rent received after the fifth (5th) calendar day of the month shall incur a late charge of 5% of the delinquent amount plus 1.5% interest per month.
+
+SECTION 3. TRIPLE NET (NNN) OPERATING EXPENSES & TAXES
+3.1 Additional Rent. Tenant shall pay its Pro Rata Share (14.2%) of all Real Property Taxes, Building Insurance premiums, and Common Area Maintenance (CAM) operational costs incurred by Landlord.
+
+SECTION 4. USE & MAINTENANCE OBLIGATIONS
+4.1 Permitted Use. The Premises shall be used solely for general corporate offices and digital content production.
+4.2 Tenant Maintenance. Tenant shall, at its sole cost, maintain the interior non-structural portions of the Premises, including HVAC interior filters, plumbing fixtures, and lighting.
+4.3 Landlord Maintenance. Landlord shall maintain the structural foundations, roof, exterior walls, and central building utility risers.
+
+SECTION 5. INDEMNIFICATION, INSURANCE & CASUALTY
+5.1 Tenant Indemnification. Tenant shall defend, indemnify, and hold Landlord harmless against any and all claims, liabilities, damages, or costs (including reasonable legal fees) resulting from Tenant's operations or any accident occurring within the Premises.
+5.2 Required Insurance. Tenant shall maintain Commercial General Liability insurance with limits of not less than $2,000,000 per occurrence and $4,000,000 aggregate, naming Landlord as additional insured.
+
+SECTION 6. DEFAULT & SURRENDER
+6.1 Monetary Default. If Tenant fails to pay any installment of Rent within five (5) days after written notice, Landlord may immediately declare a default and exercise eviction or lease termination remedies.
+6.2 Surrender Condition. Upon expiration or termination, Tenant shall surrender the Premises in broom-clean condition, ordinary wear and tear excepted, and remove all trade fixtures.`,
+};
+
+export const ALL_SAMPLE_CONTRACTS = [
+  SAMPLE_SAAS_CONTRACT,
+  SAMPLE_REVISED_SAAS_CONTRACT,
+  SAMPLE_EMPLOYMENT_AGREEMENT,
+  SAMPLE_COMMERCIAL_LEASE,
+];

@@ -23,7 +23,8 @@ export default function DashboardPage() {
   const [documents, setDocuments] = useState<LegalDocument[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mountedRef = React.useRef(false);
+  const [isMounted, setIsMounted] = React.useState(false);
   const router = useRouter();
   const { user, loading } = useAuth();
 
@@ -34,12 +35,20 @@ export default function DashboardPage() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    setMounted(true);
-    if (user) {
-      loadUserDocuments(user.uid).then(setDocuments);
-    } else if (!loading) {
-      loadUserDocuments().then(setDocuments);
-    }
+    const loadDocs = async () => {
+      if (user) {
+        const docs = await loadUserDocuments(user.uid);
+        setDocuments(docs);
+      } else if (!loading) {
+        const docs = await loadUserDocuments();
+        setDocuments(docs);
+      }
+      if (!mountedRef.current) {
+        mountedRef.current = true;
+        setIsMounted(true);
+      }
+    };
+    loadDocs();
   }, [user, loading]);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
@@ -57,7 +66,7 @@ export default function DashboardPage() {
     doc.fileName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (!mounted) return null;
+  if (!isMounted) return null;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -73,6 +82,17 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={async () => {
+              const { seedSampleDocuments } = await import("@/lib/storage/documentStore");
+              const seeded = await seedSampleDocuments(user?.uid);
+              setDocuments(seeded);
+            }}
+            className="flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/70 px-3.5 py-2.5 text-xs font-semibold text-indigo-700 shadow-xs transition hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
+          >
+            <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            Load Demo Contracts
+          </button>
           {documents.length >= 2 && (
             <Link
               href="/compare"
@@ -155,13 +175,26 @@ export default function DashboardPage() {
             <p className="mt-1 text-xs text-slate-500 max-w-md mx-auto">
               Upload any PDF agreement, employment contract, NDA, or terms of service to start extracting plain-language insights and risk reports with AI.
             </p>
-            <button
-              onClick={() => setIsUploadOpen(true)}
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
-            >
-              <Upload className="h-3.5 w-3.5" />
-              Upload Your First Document
-            </button>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={async () => {
+                  const { seedSampleDocuments } = await import("@/lib/storage/documentStore");
+                  const seeded = await seedSampleDocuments(user?.uid);
+                  setDocuments(seeded);
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-semibold text-indigo-700 shadow-xs hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Load 3 Demo Agreements (Instant)
+              </button>
+              <button
+                onClick={() => setIsUploadOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                Upload Your Own Document
+              </button>
+            </div>
           </div>
         ) : filteredDocs.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-xs text-slate-500">

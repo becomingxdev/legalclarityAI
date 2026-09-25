@@ -30,10 +30,10 @@ function CompareContent() {
   const [isComparing, setIsComparing] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] = React.useState<string>("All");
-  const [mounted, setMounted] = React.useState(false);
+  const mountedRef = React.useRef(false);
+  const [isMounted, setIsMounted] = React.useState(false);
 
   React.useEffect(() => {
-    setMounted(true);
     loadUserDocuments(user?.uid).then((docs) => {
       setDocuments(docs);
 
@@ -44,6 +44,11 @@ function CompareContent() {
         setDocBId(secondId);
       } else if (docs.length === 1) {
         setDocAId(docs[0].id);
+      }
+
+      if (!mountedRef.current) {
+        mountedRef.current = true;
+        setIsMounted(true);
       }
     });
   }, [initialDocAId, user]);
@@ -78,7 +83,7 @@ function CompareContent() {
     }
   };
 
-  if (!mounted) return null;
+  if (!isMounted) return null;
 
   if (documents.length < 2) {
     return (
@@ -92,10 +97,25 @@ function CompareContent() {
         <p className="mt-2 text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
           To compare contracts and view redline differences, you need at least two documents uploaded in your workspace.
         </p>
-        <div className="mt-6 flex justify-center gap-3">
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <button
+            onClick={async () => {
+              const { seedSampleDocuments } = await import("@/lib/storage/documentStore");
+              const seeded = await seedSampleDocuments(user?.uid);
+              setDocuments(seeded);
+              if (seeded.length >= 2) {
+                setDocAId(seeded[1].id);
+                setDocBId(seeded[2].id);
+              }
+            }}
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
+          >
+            <GitCompare className="h-3.5 w-3.5" />
+            Load Sample Contract Pair (v1 vs v2)
+          </button>
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
           >
             <Upload className="h-3.5 w-3.5" />
             Upload Contracts in Dashboard

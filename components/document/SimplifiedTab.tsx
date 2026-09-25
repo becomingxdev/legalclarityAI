@@ -6,9 +6,10 @@ import { BookOpen, CheckCircle, SplitSquareVertical, Search, FileText } from "lu
 
 interface SimplifiedTabProps {
   document: LegalDocument;
+  onNavigateToSource?: (page?: number, section?: string, chunkId?: string) => void;
 }
 
-export const SimplifiedTab: React.FC<SimplifiedTabProps> = ({ document }) => {
+export const SimplifiedTab: React.FC<SimplifiedTabProps> = ({ document, onNavigateToSource }) => {
   const sections = Array.isArray(document.analysis?.simplifiedSections) ? document.analysis.simplifiedSections : [];
   const [activeView, setActiveView] = useState<"side-by-side" | "plain-only">("side-by-side");
   const [searchTerm, setSearchTerm] = useState("");
@@ -91,7 +92,18 @@ export const SimplifiedTab: React.FC<SimplifiedTabProps> = ({ document }) => {
                     {sec.heading}
                   </h4>
                 </div>
-                <span className="text-[11px] text-slate-400 font-medium">Page {sec.pageNumber}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-400 font-medium">Page {sec.pageNumber}</span>
+                  {onNavigateToSource && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigateToSource(sec.pageNumber, sec.section)}
+                      className="text-[11px] font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
+                    >
+                      View Source →
+                    </button>
+                  )}
+                </div>
               </div>
 
               {activeView === "side-by-side" ? (
@@ -102,7 +114,7 @@ export const SimplifiedTab: React.FC<SimplifiedTabProps> = ({ document }) => {
                       Original Legal Text
                     </span>
                     <p className="text-xs text-slate-700 dark:text-slate-300 font-mono leading-relaxed">
-                      "{sec.originalText}"
+                      &ldquo;{sec.originalText}&rdquo;
                     </p>
                   </div>
 

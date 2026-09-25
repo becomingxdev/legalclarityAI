@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       if (isPdf) {
         try {
           // Use standard (non-legacy) build — text extraction does NOT need canvas
-          const pdfjsLib = require("pdfjs-dist/build/pdf.js");
+          const pdfjsLib = await import("pdfjs-dist/build/pdf.js");
           // Stub out the NodeCanvasFactory so pdfjs doesn't try to require('canvas')
           const uint8Array = new Uint8Array(buffer);
           const loadingTask = pdfjsLib.getDocument({

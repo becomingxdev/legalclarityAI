@@ -2,15 +2,16 @@
 
 import React, { useState } from "react";
 import { LegalDocument, ChecklistItem } from "@/types/legal";
-import { CheckSquare, Square, Download, Share2, Sparkles, Clock, CheckCircle } from "lucide-react";
+import { Download, Clock, CheckCircle } from "lucide-react";
 import confetti from "canvas-confetti";
 import { saveDocument } from "@/lib/storage/documentStore";
 
 interface ChecklistTabProps {
   document: LegalDocument;
+  onNavigateToSource?: (page?: number, section?: string, chunkId?: string) => void;
 }
 
-export const ChecklistTab: React.FC<ChecklistTabProps> = ({ document }) => {
+export const ChecklistTab: React.FC<ChecklistTabProps> = ({ document, onNavigateToSource }) => {
   const [items, setItems] = useState<ChecklistItem[]>(document.analysis?.checklist || []);
 
   const handleToggle = async (id: string) => {
@@ -36,10 +37,16 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({ document }) => {
 
     setItems(updated);
 
-    // Persist to document
+    // Persist to document without mutating prop
     if (document.analysis) {
-      document.analysis.checklist = updated;
-      await saveDocument(document);
+      const updatedDoc: LegalDocument = {
+        ...document,
+        analysis: {
+          ...document.analysis,
+          checklist: updated,
+        },
+      };
+      await saveDocument(updatedDoc);
     }
   };
 
@@ -152,9 +159,19 @@ ${items
                 )}
 
                 {item.sourceRef && (
-                  <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">
-                    Ref: {item.sourceRef} (Page {item.pageNumber || 1})
-                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onNavigateToSource) {
+                        onNavigateToSource(item.pageNumber, item.sourceRef);
+                      }
+                    }}
+                    className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium hover:underline flex items-center gap-1"
+                  >
+                    <span>Ref: {item.sourceRef} (Page {item.pageNumber || 1})</span>
+                    <span>→</span>
+                  </button>
                 )}
               </div>
             </div>

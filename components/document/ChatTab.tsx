@@ -1,16 +1,13 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { LegalDocument, ChatMessage } from "@/types/legal";
 import {
   Send,
-  Sparkles,
   User,
   Bot,
   FileText,
   Loader2,
-  ExternalLink,
-  ChevronRight,
 } from "lucide-react";
 import { saveDocument } from "@/lib/storage/documentStore";
 
@@ -33,12 +30,13 @@ export const ChatTab: React.FC<ChatTabProps> = ({ document, onNavigateToChunk })
     scrollToBottom();
   }, [messages, isLoading]);
 
-  const handleSend = async (questionText?: string) => {
+  const handleSend = useCallback(async (questionText?: string) => {
     const q = (questionText || input).trim();
     if (!q || isLoading) return;
 
+    const idSuffix = Math.random().toString(36).substring(2, 9);
     const userMsg: ChatMessage = {
-      id: "msg-" + Date.now(),
+      id: "msg-u-" + idSuffix,
       sender: "user",
       text: q,
       timestamp: new Date().toISOString(),
@@ -68,9 +66,10 @@ export const ChatTab: React.FC<ChatTabProps> = ({ document, onNavigateToChunk })
       }
 
       const data = await res.json();
+      const aiIdSuffix = Math.random().toString(36).substring(2, 9);
 
       const aiMsg: ChatMessage = {
-        id: "msg-" + (Date.now() + 1),
+        id: "msg-ai-" + aiIdSuffix,
         sender: "ai",
         text: data.answer || "No response received.",
         timestamp: new Date().toISOString(),
@@ -81,13 +80,17 @@ export const ChatTab: React.FC<ChatTabProps> = ({ document, onNavigateToChunk })
       const finalHistory = [...newHistory, aiMsg];
       setMessages(finalHistory);
 
-      // Persist to document
-      document.chatHistory = finalHistory;
-      await saveDocument(document);
+      // Persist to document without mutating prop
+      const updatedDoc: LegalDocument = {
+        ...document,
+        chatHistory: finalHistory,
+      };
+      await saveDocument(updatedDoc);
     } catch (err) {
       console.error(err);
+      const errSuffix = Math.random().toString(36).substring(2, 9);
       const fallbackMsg: ChatMessage = {
-        id: "msg-err-" + Date.now(),
+        id: "msg-err-" + errSuffix,
         sender: "ai",
         text: "I experienced a connection issue while grounding your answer. Please review the cited provisions in the Sources tab.",
         timestamp: new Date().toISOString(),
@@ -96,7 +99,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ document, onNavigateToChunk })
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [input, isLoading, messages, document]);
 
   const currentSuggested =
     messages[messages.length - 1]?.suggestedFollowUps || [
@@ -165,15 +168,26 @@ export const ChatTab: React.FC<ChatTabProps> = ({ document, onNavigateToChunk })
                         key={i}
                         className="rounded-lg bg-white/70 p-2 text-[11px] text-slate-700 dark:bg-slate-900/60 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700"
                       >
-                        <div className="flex items-center gap-1.5 font-semibold text-indigo-700 dark:text-indigo-400">
-                          <FileText className="h-3 w-3" />
-                          <span>Page {src.pageNumber}</span>
-                          <span>•</span>
-                          <span>{src.section}</span>
-                          {src.clause && <span>• {src.clause}</span>}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 font-semibold text-indigo-700 dark:text-indigo-400">
+                            <FileText className="h-3 w-3" />
+                            <span>Page {src.pageNumber}</span>
+                            <span>•</span>
+                            <span>{src.section}</span>
+                            {src.clause && <span>• {src.clause}</span>}
+                          </div>
+                          {onNavigateToChunk && (
+                            <button
+                              type="button"
+                              onClick={() => onNavigateToChunk(src.pageNumber, src.section)}
+                              className="text-[10px] font-semibold text-indigo-600 hover:underline dark:text-indigo-400 ml-2"
+                            >
+                              [View source]
+                            </button>
+                          )}
                         </div>
                         <p className="mt-1 font-mono text-[10px] text-slate-500 italic">
-                          "{src.quote}"
+                          &ldquo;{src.quote}&rdquo;
                         </p>
                       </div>
                     ))}

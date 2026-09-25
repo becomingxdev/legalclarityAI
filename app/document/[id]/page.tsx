@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { LegalDocument } from "@/types/legal";
@@ -38,14 +38,24 @@ export default function DocumentWorkspacePage() {
 
   const [document, setDocument] = useState<LegalDocument | null>(null);
   const [activeTab, setActiveTab] = useState<string>("overview");
-  const [mounted, setMounted] = useState(false);
+  const [sourceHighlight, setSourceHighlight] = useState<{
+    chunkId?: string;
+    page?: number;
+    search?: string;
+  }>({});
+  const mountedRef = useRef(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  const handleNavigateToSource = (page?: number, section?: string, chunkId?: string) => {
+    setSourceHighlight({ page, chunkId, search: section });
+    setActiveTab("sources");
+  };
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
       return;
     }
-    setMounted(true);
     if (id) {
       getDocumentById(id, user?.uid).then((doc) => {
         if (doc) {
@@ -57,11 +67,18 @@ export default function DocumentWorkspacePage() {
             }
           });
         }
+        if (!mountedRef.current) {
+          mountedRef.current = true;
+          setIsMounted(true);
+        }
       });
+    } else if (!mountedRef.current) {
+      mountedRef.current = true;
+      setIsMounted(true);
     }
   }, [id, user, loading, router]);
 
-  if (!mounted) return null;
+  if (!isMounted) return null;
 
   if (!document) {
     return (
@@ -179,11 +196,38 @@ export default function DocumentWorkspacePage() {
         {activeTab === "overview" && (
           <OverviewTab document={document} onNavigateToTab={(t) => setActiveTab(t)} />
         )}
-        {activeTab === "simplified" && <SimplifiedTab document={document} />}
-        {activeTab === "risks" && <RisksTab document={document} />}
-        {activeTab === "checklist" && <ChecklistTab document={document} />}
-        {activeTab === "sources" && <SourcesTab document={document} />}
-        {activeTab === "chat" && <ChatTab document={document} />}
+        {activeTab === "simplified" && (
+          <SimplifiedTab
+            document={document}
+            onNavigateToSource={handleNavigateToSource}
+          />
+        )}
+        {activeTab === "risks" && (
+          <RisksTab
+            document={document}
+            onNavigateToSource={handleNavigateToSource}
+          />
+        )}
+        {activeTab === "checklist" && (
+          <ChecklistTab
+            document={document}
+            onNavigateToSource={handleNavigateToSource}
+          />
+        )}
+        {activeTab === "sources" && (
+          <SourcesTab
+            document={document}
+            initialSearch={sourceHighlight.search}
+            highlightChunkId={sourceHighlight.chunkId}
+            highlightPage={sourceHighlight.page}
+          />
+        )}
+        {activeTab === "chat" && (
+          <ChatTab
+            document={document}
+            onNavigateToChunk={(page, section) => handleNavigateToSource(page, section)}
+          />
+        )}
         {activeTab === "nextSteps" && (
           <NextStepsTab document={document} onNavigateToTab={(t) => setActiveTab(t)} />
         )}
