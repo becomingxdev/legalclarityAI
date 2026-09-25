@@ -112,6 +112,8 @@ export function generateHeuristicAnalysis(
     ],
   };
 
+  const isSaaS = /saas|subscription|software|cloud|services agreement/i.test(rawText + title);
+
   return {
     executiveSummary: {
       documentPurpose: isSaaS
