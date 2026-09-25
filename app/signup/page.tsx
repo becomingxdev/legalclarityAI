@@ -39,6 +39,25 @@ export default function SignupPage() {
       router.push("/dashboard");
     } catch (err: unknown) {
       console.error(err);
+      if (err && typeof err === "object" && "code" in err) {
+        const code = (err as { code: string }).code;
+        if (code === "auth/popup-closed-by-user") {
+          setError("Sign-in cancelled (popup was closed).");
+          return;
+        }
+        if (code === "auth/internal-error") {
+          setError("Firebase Auth internal error. Please ensure NEXT_PUBLIC_ environment variables are loaded and that Google Sign-In is enabled in the Firebase Console.");
+          return;
+        }
+        if (code === "auth/unauthorized-domain") {
+          setError("This domain is not authorized. Add your current URL or localhost to Authorized Domains in the Firebase Console.");
+          return;
+        }
+        if (code === "auth/operation-not-allowed") {
+          setError("Google Sign-In is not enabled. Please enable Google in Firebase Console -> Authentication -> Sign-in method.");
+          return;
+        }
+      }
       setError(err instanceof Error ? err.message : "Google registration failed.");
     } finally {
       setLoading(false);
