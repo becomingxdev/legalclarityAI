@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     console.error("API /api/analyze error:", error);
     return NextResponse.json(
-      { error: "Failed to analyze document with AI", details: String(error) },
+      { error: "Failed to analyze document with AI" },
       { status: 500 }
     );
   }

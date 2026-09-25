@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { LegalDocument } from "@/types/legal";
@@ -45,10 +45,10 @@ export default function DocumentWorkspacePage() {
     search?: string;
   }>({});
 
-  const handleNavigateToSource = (page?: number, section?: string, chunkId?: string) => {
+  const handleNavigateToSource = useCallback((page?: number, section?: string, chunkId?: string) => {
     setSourceHighlight({ page, chunkId, search: section });
     setActiveTab("sources");
-  };
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) {

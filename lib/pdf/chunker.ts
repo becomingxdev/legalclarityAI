@@ -72,8 +72,14 @@ export function chunkLegalDocument(
     if (pageMatch && pageMatch[1]) {
       const parsedPage = parseInt(pageMatch[1], 10);
       if (!isNaN(parsedPage) && parsedPage > 0 && parsedPage < 500) {
+        // Flush the current chunk before switching pages so it keeps the old page number
+        if (currentLines.length > 0) {
+          pushChunk();
+        }
         detectedPage = parsedPage;
       }
+      // Page marker lines are metadata — skip adding them to chunk content
+      continue;
     } else {
       // Approximate page based on word volume
       const wordsInLine = trimmed.split(/\s+/).filter(Boolean).length;

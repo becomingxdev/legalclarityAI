@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     console.error("API /api/documents/upload error:", error);
     return NextResponse.json(
-      { error: "Failed to upload and parse document", details: String(error) },
+      { error: "Failed to upload and parse document" },
       { status: 500 }
     );
   }

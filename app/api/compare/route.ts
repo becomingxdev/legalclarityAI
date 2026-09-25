@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     console.error("API /api/compare error:", error);
     return NextResponse.json(
-      { error: "Failed to compare documents with AI", details: String(error) },
+      { error: "Failed to compare documents with AI" },
       { status: 500 }
     );
   }

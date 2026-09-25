@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     console.error("API /api/chat error:", error);
     return NextResponse.json(
-      { error: "Failed to answer question with AI", details: String(error) },
+      { error: "Failed to answer question with AI" },
       { status: 500 }
     );
   }
